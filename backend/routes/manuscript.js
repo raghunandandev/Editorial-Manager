@@ -5,7 +5,9 @@ const {
   submitManuscript, 
   getMyManuscripts, 
   getManuscript,
-  downloadManuscript 
+  downloadManuscript,
+  downloadAcceptedManuscript,
+  getAcceptedManuscripts
 } = require('../controllers/manuscriptController');
 const { auth, authorize } = require('../middleware/auth');
 const { upload, handleUploadErrors } = require('../middleware/upload'); // Updated import
@@ -13,6 +15,9 @@ const { validate } = require('../middleware/validate'); // Add this middleware
 
 const router = express.Router();
 
+// Public routes - no authentication required
+router.get('/accepted', getAcceptedManuscripts);
+router.get('/accepted/:id/download', downloadAcceptedManuscript);
 
 router.post('/submit', 
   [

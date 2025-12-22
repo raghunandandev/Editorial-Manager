@@ -40,6 +40,7 @@ import AdminDashboard from "./DashBoards/AdminDashboard";
 import SubmitManuscript from "./pages/manuscripts/SubmitManuscript";
 import MyManuscripts from "./pages/manuscripts/MyManuscripts";
 import ViewManuscript from "./pages/manuscripts/ViewManuscripts";
+import JournalsAndBooks from "./pages/JournalsAndBooks";
 
 // Articles & Issues Pages
 import ArticlesInPress from "./pages/articles/ArticlesInPress";
@@ -128,6 +129,9 @@ function App() {
             <Route path="/linked-datasets" element={<LinkedDatasets />} />
             <Route path="/set-up-alerts" element={<SetUpAlerts />} />
             <Route path="/rss" element={<RSS />} />
+
+            {/* Journals & Books - Public Route */}
+            <Route path="/journals-and-books" element={<JournalsAndBooks />} />
 
             {/* About Pages */}
             <Route path="/editorial-board" element={<EditorialBoard />} />

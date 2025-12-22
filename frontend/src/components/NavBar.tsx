@@ -6,6 +6,7 @@ const tabs = [
   { name: "Articles & Issues", dropdown: true },
   { name: "About", dropdown: true },
   { name: "Publish", dropdown: true },
+  { name: "Journals & Books", dropdown: false },
   { name: "Order journal", dropdown: false },
 ];
 
@@ -54,33 +55,49 @@ const NavBar: React.FC = () => {
                 onMouseEnter={() => tab.dropdown ? setActiveTab(tab.name) : setActiveTab(null)}
                 onMouseLeave={() => setActiveTab(null)}
               >
-                <button
-                  className={`py-4 px-3 inline-flex items-center text-sm transition-colors gap-1
-                    ${
-                      activeTab === tab.name
-                        ? 'font-bold text-gray-800'
-                        : 'font-medium text-gray-600 hover:text-brand-blue'
-                    }`}
-                >
-                  {tab.name}
-                  {tab.dropdown && <ChevronDown size={16} />}
-                </button>
-                {/* Dropdown menu for first three tabs */}
-                {tab.dropdown && activeTab === tab.name && dropdownItems[tab.name] && (
-                  <div className="absolute left-0 top-full w-64 bg-white shadow-lg rounded border border-gray-200 z-30">
-                    <ul className="py-2">
-                      {dropdownItems[tab.name].map((item, idx) => (
-                        <li key={idx}>
-                          <Link
-                            to={item.href}
-                            className="block px-4 py-2 text-gray-700 hover:bg-gray-100 text-sm"
-                          >
-                            {item.text}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                {tab.dropdown ? (
+                  <>
+                    <button
+                      className={`py-4 px-3 inline-flex items-center text-sm transition-colors gap-1
+                        ${
+                          activeTab === tab.name
+                            ? 'font-bold text-gray-800'
+                            : 'font-medium text-gray-600 hover:text-brand-blue'
+                        }`}
+                    >
+                      {tab.name}
+                      {tab.dropdown && <ChevronDown size={16} />}
+                    </button>
+                    {/* Dropdown menu */}
+                    {activeTab === tab.name && dropdownItems[tab.name] && (
+                      <div className="absolute left-0 top-full w-64 bg-white shadow-lg rounded border border-gray-200 z-30">
+                        <ul className="py-2">
+                          {dropdownItems[tab.name].map((item, idx) => (
+                            <li key={idx}>
+                              <Link
+                                to={item.href}
+                                className="block px-4 py-2 text-gray-700 hover:bg-gray-100 text-sm"
+                              >
+                                {item.text}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <Link
+                    to={tab.name === "Journals & Books" ? "/journals-and-books" : "#"}
+                    className={`py-4 px-3 inline-flex items-center text-sm transition-colors gap-1
+                      ${
+                        activeTab === tab.name
+                          ? 'font-bold text-gray-800'
+                          : 'font-medium text-gray-600 hover:text-brand-blue'
+                      }`}
+                  >
+                    {tab.name}
+                  </Link>
                 )}
               </li>
             ))}

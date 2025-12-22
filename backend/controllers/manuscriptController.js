@@ -65,6 +65,69 @@ exports.downloadManuscript = async (req, res) => {
   }
 };
 
+// Public download endpoint for accepted manuscripts (no authentication required)
+exports.downloadAcceptedManuscript = async (req, res) => {
+  try {
+    const manuscript = await Manuscript.findById(req.params.id);
+    
+    // Verify manuscript exists, is accepted, and has a file
+    if (!manuscript || !manuscript.manuscriptFile?.url) {
+      return res.status(404).json({
+        success: false,
+        message: 'Manuscript not found or file is missing'
+      });
+    }
+
+    // Only allow download if status is accepted, published, or selected
+    if (!['accepted', 'published', 'selected'].includes(manuscript.status)) {
+      return res.status(403).json({
+        success: false,
+        message: 'This manuscript is not available for download'
+      });
+    }
+
+    // If using Cloudinary
+    if (manuscript.manuscriptFile.public_id && !manuscript.manuscriptFile.public_id.startsWith('local_')) {
+      const fileUrl = cloudinary.url(manuscript.manuscriptFile.public_id, {
+        resource_type: 'raw',
+        flags: 'attachment',
+        attachment: true,
+        secure: true
+      });
+      return res.json({
+        success: true,
+        downloadUrl: fileUrl
+      });
+    } else if (manuscript.manuscriptFile.url && manuscript.manuscriptFile.url.includes('cloudinary.com')) {
+      // If URL is already a Cloudinary URL, add download parameters
+      try {
+        const url = new URL(manuscript.manuscriptFile.url);
+        url.searchParams.set('fl', 'attachment');
+        return res.json({
+          success: true,
+          downloadUrl: url.toString()
+        });
+      } catch (e) {
+        return res.json({
+          success: true,
+          downloadUrl: manuscript.manuscriptFile.url
+        });
+      }
+    }
+
+    // If using local file system
+    const filePath = path.join(__dirname, '..', manuscript.manuscriptFile.url);
+    res.download(filePath, `manuscript-${manuscript._id}.pdf`);
+    
+  } catch (error) {
+    console.error('Download error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error downloading manuscript'
+    });
+  }
+};
+
 exports.submitManuscript = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -258,3 +321,40 @@ exports.getManuscript = async (req, res) => {
   }
 };
 
+// Public endpoint to fetch all accepted manuscripts (no authentication required)
+exports.getAcceptedManuscripts = async (req, res) => {
+  try {
+    const { search } = req.query;
+    
+    // Build filter for accepted manuscripts
+    const filter = {
+      status: { $in: ['accepted', 'published', 'selected'] }
+    };
+
+    // Add search filter if provided (case-insensitive)
+    if (search && search.trim()) {
+      filter.title = { $regex: search.trim(), $options: 'i' };
+    }
+
+    const manuscripts = await Manuscript.find(filter)
+      .populate('authors.user', 'name email')
+      .populate('correspondingAuthor', 'name email affiliation')
+      .select('title abstract keywords domain authors correspondingAuthor manuscriptFile status submissionDate')
+      .sort({ submissionDate: -1 });
+
+    res.json({
+      success: true,
+      data: {
+        manuscripts,
+        count: manuscripts.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching accepted manuscripts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching manuscripts',
+      error: error.message
+    });
+  }
+};
