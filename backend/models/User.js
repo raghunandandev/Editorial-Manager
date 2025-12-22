@@ -23,8 +23,17 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: false,
     minlength: 6
+  },
+  // OAuth provider metadata (optional)
+  provider: {
+    type: String,
+    enum: ['google', 'local', null],
+    default: 'local'
+  },
+  providerId: {
+    type: String
   },
   roles: {
     author: { type: Boolean, default: true },
@@ -49,13 +58,16 @@ const userSchema = new mongoose.Schema({
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+  // Only hash when there is a password present and it was modified
+  if (!this.isModified('password') || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
 // Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  // If no password is set (OAuth user), comparison should fail
+  if (!this.password) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

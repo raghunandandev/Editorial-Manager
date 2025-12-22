@@ -26,7 +26,7 @@
 // backend/routes/auth.js
 const express = require('express');
 const { authValidation } = require('../utils/validators');
-const { register, login, getProfile } = require('../controllers/authController');
+const { register, login, getProfile, googleRedirect, googleCallback } = require('../controllers/authController');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -34,5 +34,9 @@ const router = express.Router();
 router.post('/register', authValidation.register, register);
 router.post('/login', authValidation.login, login);
 router.get('/profile', auth, getProfile);
+
+// Google OAuth routes (server-side flow)
+router.get('/google', googleRedirect);
+router.get('/google/callback', googleCallback);
 
 module.exports = router;

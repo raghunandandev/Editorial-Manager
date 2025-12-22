@@ -1,30 +1,10 @@
 // middleware/upload.js
 const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('../config/cloudinary');
 const config = require('../config/env');
 
-// Simple memory storage as fallback (for development)
+// Use memory storage for file uploads (stores in request memory, not persisted to disk)
+// This prevents multer-storage-cloudinary crashes while allowing file uploads to work
 const memoryStorage = multer.memoryStorage();
-
-// Cloudinary storage configuration
-let storage;
-try {
-  storage = new CloudinaryStorage({
-    cloudinary: cloudinary,
-    params: {
-      folder: 'manuscripts',
-      resource_type: 'raw',
-      allowed_formats: ['pdf'],
-      public_id: (req, file) => {
-        return `manuscript_${Date.now()}`;
-      }
-    },
-  });
-} catch (error) {
-  console.warn('Cloudinary storage failed, using memory storage:', error.message);
-  storage = memoryStorage;
-}
 
 const fileFilter = (req, file, cb) => {
   if (file.mimetype === 'application/pdf') {
@@ -35,14 +15,15 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage: storage,
+  storage: memoryStorage,
   limits: {
     fileSize: config.MAX_FILE_SIZE
   },
   fileFilter: fileFilter
 });
 
-// Manual upload to Cloudinary function
+// Manual upload to Cloudinary function (if needed later for direct uploads)
+const cloudinary = require('../config/cloudinary');
 const uploadToCloudinary = (buffer) => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(

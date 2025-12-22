@@ -30,6 +30,7 @@ import PoliciesAndGuidelines from "./pages/publish/policies_and_guidelines";
 import CallForAuthorsList, { CallForAuthorsDetail } from "./pages/publish/call_for_authors";
 import SignUp from "./pages/sign_pages/signUp";
 import LogIn from "./pages/sign_pages/logIn";
+import GoogleCallback from "./pages/sign_pages/googleCallback";
 import RoleSelection from "./pages/selection/roleSelection";
 import ProtectedRoute from "./components/protectedRoute";
 import AuthorDashboard from "./DashBoards/AuthorDashboard";
@@ -143,6 +144,7 @@ function App() {
             {/* Auth Pages */}
             <Route path="/signup" element={<SignUp />} />
             <Route path="/login" element={<LogIn />} />
+            <Route path="/auth/google/callback" element={<GoogleCallback />} />
 
             {/* Protected Routes */}
             <Route 

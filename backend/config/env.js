@@ -17,6 +17,12 @@ const config = {
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+
+  // Google OAuth
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  // Frontend URL to redirect after OAuth (set in env)
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
   
   // Email
   SMTP_HOST: process.env.SMTP_HOST,
@@ -29,6 +35,9 @@ const config = {
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
   ALLOWED_FILE_TYPES: ['application/pdf']
 };
+
+// Server root (used to construct OAuth redirect URIs)
+config.SERVER_ROOT_URL = process.env.SERVER_ROOT_URL || `http://localhost:${config.PORT}`;
 
 // Validate required environment variables
 const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];

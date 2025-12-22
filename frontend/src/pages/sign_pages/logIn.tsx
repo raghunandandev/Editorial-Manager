@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { authAPI } from '../../services/api';
 // newClient/src/pages/sign_pages/logIn.tsx
 import { validateEmail, validatePassword } from '../../utils/validation';
@@ -11,6 +11,45 @@ const LogIn = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const location = useLocation();
+
+  // If redirected from OAuth with an error, show it (react to location changes)
+  React.useEffect(() => {
+    console.log('[LogIn] location.search:', location.search, 'location.state:', location.state);
+    // Prefer router state (set by GoogleCallback) because it's reliable during navigation
+    const state = location.state as { oauthError?: boolean; message?: string } | null;
+    if (state?.oauthError) {
+      setError(state.message || 'Authentication with Google failed.');
+      return;
+    }
+
+    // Fallback to query params for direct links
+    const params = new URLSearchParams(location.search);
+    const oauthError = params.get('oauth_error');
+    const message = params.get('message');
+    if (oauthError) {
+      console.log('[LogIn] oauthError found in query, message:', message);
+      try {
+        const decoded = message ? decodeURIComponent(message) : 'Authentication with Google failed.';
+        setError(decoded);
+      } catch (e) {
+        setError(message || 'Authentication with Google failed.');
+      }
+    }
+
+    // Final fallback: check localStorage (set by GoogleCallback) and clear it after use
+    try {
+      const stored = localStorage.getItem('oauth_error_message');
+      if (stored) {
+        console.log('[LogIn] oauth error found in localStorage:', stored);
+        setError(stored);
+        localStorage.removeItem('oauth_error_message');
+      }
+    } catch (e) {
+      // ignore storage errors
+    }
+  }, [location.search]);
 
   // Inside the LogIn component, add these state variables
 const [errors, setErrors] = useState<{
@@ -167,6 +206,15 @@ const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
               >
                 {loading ? 'Signing in...' : 'Sign in'}
+              </button>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => { window.location.href = 'http://localhost:3000/api/auth/google'; }}
+                className="w-full mt-3 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-100"
+              >
+                Continue with Google
               </button>
             </div>
           </form>

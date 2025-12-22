@@ -241,6 +241,15 @@ const SignUp = () => {
                 {loading ? 'Creating Account...' : 'Create Account'}
               </button>
             </div>
+            <div>
+              <button
+                type="button"
+                onClick={() => { window.location.href = 'http://localhost:3000/api/auth/google'; }}
+                className="w-full mt-3 flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-100"
+              >
+                Continue with Google
+              </button>
+            </div>
           </form>
         </div>
       </div>
