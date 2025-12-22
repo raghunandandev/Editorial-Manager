@@ -238,8 +238,7 @@ const Header = () => {
       author: { label: 'Author', color: 'bg-blue-100 text-blue-800 border-blue-200' },
       reviewer: { label: 'Reviewer', color: 'bg-green-100 text-green-800 border-green-200' },
       editor: { label: 'Editor', color: 'bg-purple-100 text-purple-800 border-purple-200' },
-      editorInChief: { label: 'Editor-in-Chief', color: 'bg-red-100 text-red-800 border-red-200' },
-      viewer: { label: 'Viewer', color: 'bg-gray-100 text-gray-800 border-gray-200' }
+      editorInChief: { label: 'Editor-in-Chief', color: 'bg-red-100 text-red-800 border-red-200' }
     };
     
     return roleConfig[role] || { label: role, color: 'bg-gray-100 text-gray-800 border-gray-200' };
@@ -292,7 +291,6 @@ const Header = () => {
                   if (userRoles.reviewer) availableRoles.push('reviewer');
                   if (userRoles.editor) availableRoles.push('editor');
                   if (userRoles.editorInChief) availableRoles.push('editorInChief');
-                  availableRoles.push('viewer');
                   
                   return availableRoles.length > 1 ? (
                     <button 

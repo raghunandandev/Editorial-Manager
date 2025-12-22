@@ -69,7 +69,6 @@ export const useAuth = () => {
     if (hasRole('reviewer')) roles.push('reviewer');
     if (hasRole('editor')) roles.push('editor');
     if (hasRole('editorInChief')) roles.push('editorInChief');
-    roles.push('viewer');
     
     return roles;
   };

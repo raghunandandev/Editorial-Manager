@@ -22,7 +22,7 @@ const router = express.Router();
 router.post(
   '/:manuscriptId/submit',
   [
-    auth,
+    auth,     
     authorize('reviewer'),
     param('manuscriptId')
       .isMongoId()

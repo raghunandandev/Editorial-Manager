@@ -208,7 +208,7 @@ const handleSubmitReview = async () => {
 
   setSubmittingReview(true);
   try {
-    const response = await api.post(`/api/reviews/${viewingManuscript._id}/submit`, reviewForm);
+    const response = await api.post(`/reviews/${viewingManuscript._id}/submit`, reviewForm);
     
     if (response.success) {
       setMessage({ type: 'success', text: 'Review submitted successfully' });

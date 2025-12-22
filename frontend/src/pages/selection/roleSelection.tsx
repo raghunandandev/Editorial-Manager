@@ -157,7 +157,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Eye, Edit, FileCheck, LogOut, Crown } from 'lucide-react';
+import { User, Edit, FileCheck, LogOut, Crown } from 'lucide-react';
 
 const RoleSelection = () => {
   const navigate = useNavigate();
@@ -172,9 +172,6 @@ const RoleSelection = () => {
     if (userRoles.reviewer) roles.push('reviewer');
     if (userRoles.editor) roles.push('editor');
     if (userRoles.editorInChief) roles.push('editorInChief');
-    
-    // Viewer role sabko milti hai
-    roles.push('viewer');
     
     return roles;
   };
@@ -199,9 +196,6 @@ const RoleSelection = () => {
         break;
       case 'editorInChief':
         navigate('/admin-dashboard');
-        break;
-      case 'viewer':
-        navigate('/');
         break;
       default:
         navigate('/');
@@ -244,17 +238,10 @@ const RoleSelection = () => {
         description: 'Overall system administration, user management, and final decisions',
         color: 'red',
         buttonText: 'Enter as Editor-in-Chief'
-      },
-      viewer: {
-        title: 'Viewer',
-        icon: Eye,
-        description: 'Browse published articles, read research papers, explore journal content',
-        color: 'gray',
-        buttonText: 'Enter as Viewer'
       }
     };
     
-    return config[role] || config.viewer;
+    return config[role] || { title: role, icon: User, description: '', color: 'gray', buttonText: `Enter as ${role}` };
   };
 
   const getColorClasses = (color) => {

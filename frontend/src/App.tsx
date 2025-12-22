@@ -40,6 +40,25 @@ import SubmitManuscript from "./pages/manuscripts/SubmitManuscript";
 import MyManuscripts from "./pages/manuscripts/MyManuscripts";
 import ViewManuscript from "./pages/manuscripts/ViewManuscripts";
 
+// Articles & Issues Pages
+import ArticlesInPress from "./pages/articles/ArticlesInPress";
+import SpecialIssuesPage from "./pages/articles/SpecialIssues";
+import LinkedDatasets from "./pages/articles/LinkedDatasets";
+import SetUpAlerts from "./pages/articles/SetUpAlerts";
+import RSS from "./pages/articles/RSS";
+
+// About Pages
+import EditorialBoard from "./pages/about/EditorialBoard";
+import JournalInsights from "./pages/about/JournalInsights";
+import News from "./pages/about/News";
+import EditorsChoice from "./pages/about/EditorsChoice";
+import Awards from "./pages/about/Awards";
+
+// Publish Pages
+import OpenAccess from "./pages/publish/OpenAccess";
+import CompareJournals from "./pages/publish/CompareJournals";
+import LanguageEditing from "./pages/publish/LanguageEditing";
+
 // Home Page as a separate component for cleaner structure
 const HomePage = () => {
   return (
@@ -101,6 +120,25 @@ function App() {
             <Route path="/guide_for_authors" element={<GuideForAuthors />} />
             <Route path="/publish/call-for-authors" element={<CallForAuthorsList />} />
             <Route path="/publish/call-for-authors/:id" element={<CallForAuthorsDetail />} />
+
+            {/* Articles & Issues Pages */}
+            <Route path="/articles-in-press" element={<ArticlesInPress />} />
+            <Route path="/special-issues" element={<SpecialIssuesPage />} />
+            <Route path="/linked-datasets" element={<LinkedDatasets />} />
+            <Route path="/set-up-alerts" element={<SetUpAlerts />} />
+            <Route path="/rss" element={<RSS />} />
+
+            {/* About Pages */}
+            <Route path="/editorial-board" element={<EditorialBoard />} />
+            <Route path="/journal-insights" element={<JournalInsights />} />
+            <Route path="/news" element={<News />} />
+            <Route path="/editors-choice" element={<EditorsChoice />} />
+            <Route path="/awards" element={<Awards />} />
+
+            {/* Publish Pages */}
+            <Route path="/open-access" element={<OpenAccess />} />
+            <Route path="/compare-journals" element={<CompareJournals />} />
+            <Route path="/language-editing" element={<LanguageEditing />} />
 
             {/* Auth Pages */}
             <Route path="/signup" element={<SignUp />} />
