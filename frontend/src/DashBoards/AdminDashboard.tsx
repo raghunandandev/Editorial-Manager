@@ -2,6 +2,7 @@
 //AdminDashboard.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { adminAPI } from '../services/api';
+import { queriesAPI } from '../services/api';
 import { Shield, Users, FileText, Loader2, CheckCircle, XCircle, Send, UserCog, AlertCircle, RefreshCw, Plus, Pencil } from 'lucide-react';
 
 type StatKey = 'totalUsers' | 'activeReviewers' | 'pendingManuscripts' | 'decisionsThisWeek';
@@ -49,6 +50,10 @@ const AdminDashboard: React.FC = () => {
   const [assigning, setAssigning] = useState(false);
   const [roleSaving, setRoleSaving] = useState<Record<string, boolean>>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [pendingQueriesList, setPendingQueriesList] = useState<any[]>([]);
+  const [answeredQueriesList, setAnsweredQueriesList] = useState<any[]>([]);
+  const [openQueryId, setOpenQueryId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState<string>('');
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -75,6 +80,17 @@ const AdminDashboard: React.FC = () => {
 
       if (pendingRes.success) {
         setPendingManuscripts(pendingRes.data?.manuscripts || []);
+      }
+      // Load queries (if available)
+      try {
+        const qres = await queriesAPI.getPending();
+        if (qres.success) {
+          const allQueries = qres.data?.queries || [];
+          setPendingQueriesList(allQueries.filter((q: any) => q.status === 'pending'));
+          setAnsweredQueriesList(allQueries.filter((q: any) => q.status === 'answered'));
+        }
+      } catch (e) {
+        // ignore
       }
     } catch (error) {
       setStatusMessage('Using local data while API is unreachable.');
@@ -381,6 +397,93 @@ const AdminDashboard: React.FC = () => {
                     {roleSaving[user.id] ? <Loader2 size={16} className="animate-spin" /> : <UserCog size={16} />}
                     {roleSaving[user.id] ? 'Saving...' : 'Save roles'}
                   </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Queries (Editor-in-Chief) */}
+        <div className="mt-6 rounded-lg bg-white shadow">
+          <div className="border-b border-gray-200 px-6 py-4">
+            <h2 className="text-xl font-semibold text-gray-900">Queries</h2>
+            <p className="text-sm text-gray-500">Pending queries submitted by users</p>
+          </div>
+
+          <div className="divide-y divide-gray-100">
+            {pendingQueriesList.length === 0 ? (
+              <div className="p-6 text-sm text-gray-600">No pending queries</div>
+            ) : pendingQueriesList.map((q) => (
+              <div key={q._id} className="px-6 py-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">{q.name} — <span className="text-sm text-gray-600">{q.email}</span></p>
+                    <p className="mt-1 text-sm text-gray-600">Submitted: {new Date(q.createdAt).toLocaleString()}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setOpenQueryId(openQueryId === q._id ? null : q._id)} className="rounded-md bg-gray-100 px-3 py-2 text-sm">{openQueryId === q._id ? 'Close' : 'Open'}</button>
+                  </div>
+                </div>
+
+                {openQueryId === q._id && (
+                  <div className="mt-4">
+                    <div className="mb-3 rounded-md border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800">{q.message}</div>
+                    <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows={4} className="w-full rounded-md border border-gray-300 px-3 py-2" placeholder="Enter your reply" />
+                    <div className="mt-3 flex items-center gap-2">
+                      <button onClick={async () => {
+                        if (!replyText.trim()) return setStatusMessage('Reply cannot be empty');
+                        try {
+                          await queriesAPI.replyQuery(q._id, replyText.trim());
+                          setPendingQueriesList((prev) => prev.filter(item => item._id !== q._id));
+                          setReplyText('');
+                          setOpenQueryId(null);
+                          setStatusMessage('Reply sent successfully');
+                        } catch (err) {
+                          setStatusMessage('Failed to send reply');
+                        }
+                      }} className="rounded-md bg-blue-600 px-4 py-2 text-white">Send Reply</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Answered Queries History */}
+        <div className="mt-6 rounded-lg bg-white shadow">
+          <div className="border-b border-gray-200 px-6 py-4">
+            <h2 className="text-xl font-semibold text-gray-900">Query History</h2>
+            <p className="text-sm text-gray-500">Answered queries and responses</p>
+          </div>
+
+          <div className="divide-y divide-gray-100">
+            {answeredQueriesList.length === 0 ? (
+              <div className="p-6 text-sm text-gray-600">No answered queries yet</div>
+            ) : answeredQueriesList.map((q) => (
+              <div key={q._id} className="px-6 py-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">{q.name} — <span className="text-sm text-gray-600">{q.email}</span></p>
+                    <p className="mt-1 text-sm text-gray-600">Submitted: {new Date(q.createdAt).toLocaleString()}</p>
+                    {q.repliedAt && <p className="text-sm text-green-600">Replied: {new Date(q.repliedAt).toLocaleString()}</p>}
+                  </div>
+                  <div>
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">Answered</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-700">User Query:</p>
+                    <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">{q.message}</p>
+                  </div>
+                  {q.reply && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700">Your Response:</p>
+                      <p className="rounded-md bg-blue-50 px-3 py-2 text-sm text-gray-700">{q.reply}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

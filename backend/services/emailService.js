@@ -118,3 +118,43 @@ exports.notifyReviewSubmitted = async (editorId, manuscript, review) => {
 
   await transporter.sendMail(mailOptions);
 };
+
+// Notify Editor-in-Chief about a new help/query submission
+exports.notifyNewQuery = async (editorEmail, query) => {
+  const mailOptions = {
+    from: config.FROM_EMAIL,
+    to: editorEmail,
+    subject: 'New Help / Query Submitted',
+    html: `
+      <h2>New Query Submitted</h2>
+      <p><strong>Name:</strong> ${query.name}</p>
+      <p><strong>Email:</strong> ${query.email}</p>
+      <p><strong>Message:</strong></p>
+      <p>${query.message}</p>
+      <p>Submitted at: ${query.createdAt || new Date().toISOString()}</p>
+      <p>Please log in to the editorial system to respond.</p>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+// Send reply from Editor to the user who submitted the query
+exports.sendQueryReply = async (userEmail, reply, originalQuery) => {
+  const mailOptions = {
+    from: config.FROM_EMAIL,
+    to: userEmail,
+    subject: 'Response to Your Query',
+    html: `
+      <h2>Response from Editor</h2>
+      <p><strong>Your original query:</strong></p>
+      <p>${originalQuery.message}</p>
+      <hr/>
+      <p><strong>Editor's response:</strong></p>
+      <p>${reply}</p>
+      <p>If you need further assistance reply to this email.</p>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+};

@@ -296,6 +296,13 @@ export const manuscriptAPI = {
   },
 };
 
+export const queriesAPI = {
+  submitQuery: (payload: { name: string; email: string; message: string }) => api.post('/queries', payload),
+  getPending: () => api.get('/queries/pending'),
+  getUserQueries: () => api.get('/queries/my-queries'),
+  replyQuery: (id: string, reply: string) => api.post(`/queries/${id}/reply`, { reply })
+};
+
 interface ReviewFormData {
   scores: {
     originality: number;

@@ -41,6 +41,8 @@ import SubmitManuscript from "./pages/manuscripts/SubmitManuscript";
 import MyManuscripts from "./pages/manuscripts/MyManuscripts";
 import ViewManuscript from "./pages/manuscripts/ViewManuscripts";
 import JournalsAndBooks from "./pages/JournalsAndBooks";
+import HelpPage from "./pages/help/Help";
+import QueryHistory from "./pages/help/QueryHistory";
 
 // Articles & Issues Pages
 import ArticlesInPress from "./pages/articles/ArticlesInPress";
@@ -149,6 +151,8 @@ function App() {
             <Route path="/signup" element={<SignUp />} />
             <Route path="/login" element={<LogIn />} />
             <Route path="/auth/google/callback" element={<GoogleCallback />} />
+            <Route path="/help" element={<HelpPage />} />
+            <Route path="/my-queries" element={<ProtectedRoute><QueryHistory /></ProtectedRoute>} />
 
             {/* Protected Routes */}
             <Route 

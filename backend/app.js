@@ -12,6 +12,7 @@ const authRoutes = require('./routes/auth');
 const manuscriptRoutes = require('./routes/manuscript');
 const reviewRoutes = require('./routes/review');
 const adminRoutes = require('./routes/admin');
+const queryRoutes = require('./routes/queries');
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/manuscripts', manuscriptRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/queries', queryRoutes);
 // Health check
 app.get('/health', (req, res) => {
   res.status(200).json({

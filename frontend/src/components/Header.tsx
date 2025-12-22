@@ -263,7 +263,7 @@ const Header = () => {
             <div className="flex cursor-pointer items-center gap-1 text-gray-600 hover:text-brand-blue">
               Journals & Books
             </div>
-            <div className="flex cursor-pointer items-center gap-1 text-gray-600 hover:text-brand-blue">
+            <div onClick={() => navigate('/help')} role="button" tabIndex={0} className="flex cursor-pointer items-center gap-1 text-gray-600 hover:text-brand-blue">
               <HelpCircle size={18} /> Help
             </div>
             <div className="flex cursor-pointer items-center gap-1 text-gray-600 hover:text-brand-blue">
