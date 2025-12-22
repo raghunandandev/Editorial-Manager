@@ -1,6 +1,7 @@
 // services/emailService.js
 const nodemailer = require('nodemailer');
 const config = require('../config/env');
+const User = require('../models/User');
 
 const transporter = nodemailer.createTransport({
   host: config.SMTP_HOST,
