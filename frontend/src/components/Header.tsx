@@ -252,23 +252,23 @@ const Header = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Left Side */}
           <div className="flex items-center gap-6">
-            <div className="text-lg font-bold tracking-wider text-brand-orange">ELSEVIER</div>
-            <div className="flex items-center gap-2">
+            <div className="text-lg font-bold tracking-wider text-brand-orange">Internet Of Journals</div>
+            {/* <div className="flex items-center gap-2">
               <img src="https://upload.wikimedia.org/wikipedia/commons/6/6a/ScienceDirect_logo.svg" alt="ScienceDirect Logo" className="h-6" />
-            </div>
+            </div> */}
           </div>
 
           {/* Right Side */}
           <div className="hidden items-center space-x-6 text-sm font-medium md:flex">
-            <div className="flex cursor-pointer items-center gap-1 text-gray-600 hover:text-brand-blue">
+            {/* <div className="flex cursor-pointer items-center gap-1 text-gray-600 hover:text-brand-blue">
               Journals & Books
-            </div>
+            </div> */}
             <div onClick={() => navigate('/help')} role="button" tabIndex={0} className="flex cursor-pointer items-center gap-1 text-gray-600 hover:text-brand-blue">
               <HelpCircle size={18} /> Help
             </div>
-            <div className="flex cursor-pointer items-center gap-1 text-gray-600 hover:text-brand-blue">
+            {/* <div className="flex cursor-pointer items-center gap-1 text-gray-600 hover:text-brand-blue">
               <Search size={18} /> Search
-            </div>
+            </div> */}
 
             {user ? (
               // ✅ Logged In - Show User Greeting + Current Role + Switch Role + Logout

@@ -7,7 +7,7 @@ const tabs = [
   { name: "About", dropdown: true },
   { name: "Publish", dropdown: true },
   { name: "Journals & Books", dropdown: false },
-  { name: "Order journal", dropdown: false },
+  // { name: "Order journal", dropdown: false },
 ];
 
 const NavBar: React.FC = () => {
@@ -104,10 +104,10 @@ const NavBar: React.FC = () => {
           </ul>
 
           <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
-             <div className="relative">
+             {/* <div className="relative">
                 <input type="text" placeholder="Search in this journal" className="border rounded-md py-2 pl-10 pr-4 w-64 focus:outline-none focus:ring-2 focus:ring-brand-blue" />
                 <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            </div>
+            </div> */}
             {/* <a href="submit-article" className="text-brand-blue hover:underline">Submit your article</a> */}
             <Link to="/guide_for_authors" className="text-brand-blue hover:underline">Guide for authors</Link>
           </div>

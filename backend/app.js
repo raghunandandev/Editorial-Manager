@@ -13,6 +13,8 @@ const manuscriptRoutes = require('./routes/manuscript');
 const reviewRoutes = require('./routes/review');
 const adminRoutes = require('./routes/admin');
 const queryRoutes = require('./routes/queries');
+const editorialRoutes = require('./routes/editorial');
+const editorProfileRoutes = require('./routes/editorProfile');
 
 const app = express();
 
@@ -51,6 +53,10 @@ app.use('/api/manuscripts', manuscriptRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/queries', queryRoutes);
+// Public editorial board endpoint
+app.use('/api', editorialRoutes);
+// Editor profile endpoint
+app.use('/api', editorProfileRoutes);
 // Health check
 app.get('/health', (req, res) => {
   res.status(200).json({

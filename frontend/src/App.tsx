@@ -53,6 +53,7 @@ import RSS from "./pages/articles/RSS";
 
 // About Pages
 import EditorialBoard from "./pages/about/EditorialBoard";
+import EditorDetailPage from "./pages/about/EditorDetailPage";
 import JournalInsights from "./pages/about/JournalInsights";
 import News from "./pages/about/News";
 import EditorsChoice from "./pages/about/EditorsChoice";
@@ -137,6 +138,7 @@ function App() {
 
             {/* About Pages */}
             <Route path="/editorial-board" element={<EditorialBoard />} />
+            <Route path="/editor/:id" element={<EditorDetailPage />} />
             <Route path="/journal-insights" element={<JournalInsights />} />
             <Route path="/news" element={<News />} />
             <Route path="/editors-choice" element={<EditorsChoice />} />

@@ -12,10 +12,10 @@ const JournalBanner: React.FC = () => {
           {/* Left Side */}
           <div className="flex items-center gap-6">
             <div className="bg-white p-2 hidden sm:block">
-              <img src="https://i.ibb.co/6rC6Pz2/iot-cover.png" alt="Internet of Things Journal Cover" className="h-32 w-auto" />
+              <img src="https://clipart-library.com/data_images/257320.gif" alt="Internet of Things Journal Cover" className="h-32 w-auto" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold cursor-pointer hover:underline">Internet of Things</h1>
+              <h1 className="text-4xl font-bold cursor-pointer hover:underline">Internet of Journals</h1>
               <p className="mt-2 text-lg text-gray-300 cursor-pointer hover:underline">Supports open access</p>
             </div>
           </div>

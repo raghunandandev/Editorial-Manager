@@ -1,7 +1,7 @@
 // models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');  // Add this line at the top
+const jwt = require('jsonwebtoken');
 
 const userSchema = new mongoose.Schema({
   firstName: {
@@ -26,7 +26,6 @@ const userSchema = new mongoose.Schema({
     required: false,
     minlength: 6
   },
-  // OAuth provider metadata (optional)
   provider: {
     type: String,
     enum: ['google', 'local', null],
@@ -46,7 +45,17 @@ const userSchema = new mongoose.Schema({
     country: String,
     expertise: [String],
     orcid: String,
-    bio: String
+    bio: String,
+    image: String,
+    title: String,
+    department: String,
+    website: String,
+    phone: String,
+    socialLinks: {
+      twitter: String,
+      linkedin: String,
+      researchGate: String
+    }
   },
   isActive: {
     type: Boolean,
@@ -56,17 +65,13 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Hash password before saving
 userSchema.pre('save', async function(next) {
-  // Only hash when there is a password present and it was modified
   if (!this.isModified('password') || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
-// Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
-  // If no password is set (OAuth user), comparison should fail
   if (!this.password) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
@@ -79,7 +84,6 @@ userSchema.methods.generateAuthToken = function() {
   );
 };
 
-// Check if user has role
 userSchema.methods.hasRole = function(role) {
   return this.roles[role] === true;
 };
