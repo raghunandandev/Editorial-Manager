@@ -12,6 +12,8 @@ const tabs = [
 
 const NavBar: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string | null>(null);
+  const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
+  const currentRole = typeof window !== 'undefined' ? localStorage.getItem('currentRole') : null;
 
 
   const dropdownItems: Record<string, { text: string; href: string }[]> = {
@@ -110,6 +112,13 @@ const NavBar: React.FC = () => {
             </div> */}
             {/* <a href="submit-article" className="text-brand-blue hover:underline">Submit your article</a> */}
             <Link to="/guide_for_authors" className="text-brand-blue hover:underline">Guide for authors</Link>
+            {/* Role-based dashboard links */}
+            {(currentRole === 'editor' || user?.roles?.editor) && (
+              <Link to="/editor-dashboard" className="text-gray-700 hover:underline">Editor Dashboard</Link>
+            )}
+            {(currentRole === 'editorInChief' || user?.roles?.editorInChief) && (
+              <Link to="/admin-dashboard" className="text-gray-700 hover:underline">Admin Dashboard</Link>
+            )}
           </div>
         </div>
       </div>

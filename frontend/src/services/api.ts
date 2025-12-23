@@ -255,6 +255,7 @@ export const adminAPI = {
   getPendingManuscripts: () => api.get('/admin/pending-manuscripts'),
   setManuscriptStatus: (id: string, status: string) =>
     api.patch(`/admin/manuscripts/${id}/status`, { status }),
+  getPayments: () => api.get('/admin/payments')
 };
 
 // In newClient/src/services/api.ts
@@ -294,6 +295,11 @@ export const manuscriptAPI = {
       responseType: 'blob'
     });
   },
+};
+
+export const paymentAPI = {
+  createOrder: (manuscriptId: string) => api.post('/payments/create-order', { manuscriptId }),
+  verifyPayment: (payload: any) => api.post('/payments/verify', payload)
 };
 
 export const queriesAPI = {

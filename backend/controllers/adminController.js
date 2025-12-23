@@ -150,8 +150,9 @@ exports.assignReviewer = async (req, res) => {
 
     await assignment.save();
 
-    // Update manuscript status
+    // Update manuscript legacy status and workflow status
     manuscript.status = 'under_review';
+    manuscript.workflowStatus = 'UNDER_REVIEW';
     await manuscript.save();
 
     // Notify reviewer
@@ -236,5 +237,163 @@ exports.setManuscriptStatus = async (req, res) => {
       message: 'Error updating manuscript status',
       error: error.message
     });
+  }
+};
+
+/**
+ * @desc    Editor-in-Chief makes final decision after reviews
+ * @route   POST /api/admin/manuscripts/:id/editor-decision
+ * @access  Private (Editor-in-Chief)
+ */
+exports.editorDecision = async (req, res) => {
+  try {
+    const { decision } = req.body; // expected 'accept' or 'reject'
+    const manuscript = await Manuscript.findById(req.params.id);
+
+    if (!manuscript) return res.status(404).json({ success: false, message: 'Manuscript not found' });
+
+    if (decision === 'accept') {
+      manuscript.status = 'accepted';
+      // Do not publish yet; move to editor accepted workflow
+      manuscript.workflowStatus = 'EDITOR_ACCEPTED';
+      // Create a payment placeholder and notify author to pay
+      try {
+        const pages = manuscript.manuscriptFile?.pages || 1;
+        const baseAmount = 5;
+        const extraPages = pages > 6 ? pages - 6 : 0;
+        const totalAmount = baseAmount + (extraPages * 10);
+
+        manuscript.publicationCharges = manuscript.publicationCharges || {};
+        manuscript.publicationCharges.baseAmount = baseAmount;
+        manuscript.publicationCharges.extraPages = extraPages;
+        manuscript.publicationCharges.totalAmount = totalAmount;
+
+        const payment = {
+          paymentId: `pay_${Date.now()}`,
+          amount: totalAmount,
+          timestamp: new Date(),
+          status: 'pending',
+          metadata: {}
+        };
+
+        manuscript.payments = manuscript.payments || [];
+        manuscript.payments.push(payment);
+        manuscript.workflowStatus = 'PAYMENT_PENDING';
+        await manuscript.save();
+
+        // Notify author to complete payment
+        const author = await User.findById(manuscript.correspondingAuthor);
+        if (author) {
+          await emailService.notifyAuthorPaymentRequest(author.email, manuscript, payment);
+        }
+      } catch (e) {
+        console.warn('Failed to create payment placeholder or notify author:', e.message);
+      }
+    } else if (decision === 'reject') {
+      manuscript.status = 'rejected';
+      manuscript.workflowStatus = 'REVIEW_ACCEPTED';
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid decision' });
+    }
+
+    await manuscript.save();
+
+    res.json({ success: true, message: 'Editor decision recorded', data: { manuscript } });
+  } catch (error) {
+    console.error('Editor decision error:', error);
+    res.status(500).json({ success: false, message: 'Error recording decision', error: error.message });
+  }
+};
+
+/**
+ * @desc    Request payment from author after editor acceptance
+ * @route   POST /api/admin/manuscripts/:id/request-payment
+ * @access  Private (Editor-in-Chief)
+ */
+exports.requestPayment = async (req, res) => {
+  try {
+    const manuscript = await Manuscript.findById(req.params.id).populate('correspondingAuthor');
+    if (!manuscript) return res.status(404).json({ success: false, message: 'Manuscript not found' });
+
+    if (manuscript.workflowStatus !== 'EDITOR_ACCEPTED' && manuscript.status !== 'accepted') {
+      return res.status(400).json({ success: false, message: 'Manuscript is not ready for payment request' });
+    }
+
+    // Ensure publicationCharges are set with valid amount
+    if (!manuscript.publicationCharges || typeof manuscript.publicationCharges.totalAmount !== 'number' || manuscript.publicationCharges.totalAmount <= 0) {
+      console.error('Invalid publicationCharges for manuscript:', req.params.id, manuscript.publicationCharges);
+      // Set default charges if missing (default: 5 for up to 6 pages)
+      manuscript.publicationCharges = {
+        baseAmount: 5,
+        extraPages: 0,
+        totalAmount: 5
+      };
+      await manuscript.save();
+    }
+
+    // Create a payment placeholder (client will perform payment via gateway)
+    const payment = {
+      paymentId: `pay_${Date.now()}`,
+      amount: manuscript.publicationCharges.totalAmount,
+      timestamp: new Date(),
+      status: 'pending',
+      metadata: {}
+    };
+
+    manuscript.payments = manuscript.payments || [];
+    manuscript.payments.push(payment);
+    manuscript.workflowStatus = 'PAYMENT_PENDING';
+    await manuscript.save();
+
+    // Notify author to complete payment
+    try {
+      await emailService.notifyAuthorPaymentRequest(manuscript.correspondingAuthor.email, manuscript, payment);
+    } catch (e) {
+      console.warn('Payment notification failed', e.message);
+    }
+
+    res.json({ success: true, message: 'Payment requested', data: { payment } });
+  } catch (error) {
+    console.error('Request payment error:', error);
+    res.status(500).json({ success: false, message: 'Error requesting payment', error: error.message });
+  }
+};
+
+/**
+ * @desc    Get all payments across manuscripts (for Editor-in-Chief)
+ * @route   GET /api/admin/payments
+ * @access  Private (Editor-in-Chief)
+ */
+exports.getPayments = async (req, res) => {
+  try {
+    // Find manuscripts that have payments
+    const manuscripts = await Manuscript.find({ 'payments.0': { $exists: true } })
+      .select('title correspondingAuthor payments')
+      .populate('correspondingAuthor', 'firstName lastName email');
+
+    const payments = [];
+    manuscripts.forEach(m => {
+      (m.payments || []).forEach(p => {
+        payments.push({
+          manuscriptId: m._id,
+          manuscriptTitle: m.title,
+          author: m.correspondingAuthor ? `${m.correspondingAuthor.firstName} ${m.correspondingAuthor.lastName}` : 'Unknown',
+          authorEmail: m.correspondingAuthor?.email || null,
+          paymentId: p.paymentId,
+          amount: p.amount,
+          status: p.status,
+          timestamp: p.timestamp,
+          metadata: p.metadata || {}
+        });
+      });
+    });
+
+    // Sort by newest
+    payments.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    res.json({ success: true, data: { payments, count: payments.length } });
+  } catch (error) {
+    console.error('Error fetching payments:', error);
+    res.status(500).json({ success: false, message: 'Error fetching payments', error: error.message });
   }
 };

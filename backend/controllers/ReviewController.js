@@ -154,6 +154,15 @@ exports.acceptReviewAssignment = async (req, res) => {
     assignment.status = 'accepted';
     await assignment.save();
 
+    // Mark manuscript workflow as review in progress
+    if (assignment.manuscript) {
+      const manuscript = await Manuscript.findById(assignment.manuscript._id);
+      if (manuscript) {
+        manuscript.workflowStatus = 'REVIEW_IN_PROGRESS';
+        await manuscript.save();
+      }
+    }
+
     // Notify editor
     await emailService.notifyReviewAssignmentAccepted(
       assignment.editor,
@@ -587,6 +596,8 @@ const updateManuscriptStatus = async (manuscriptId) => {
     
     if (recommendations.every(rec => rec === 'accept')) {
       manuscript.status = 'accepted';
+      // mark workflow that reviewers recommended acceptance
+      manuscript.workflowStatus = 'REVIEW_ACCEPTED';
     } else if (recommendations.some(rec => rec === 'reject')) {
       manuscript.status = 'rejected';
     } else if (recommendations.some(rec => ['minor_revisions', 'major_revisions'].includes(rec))) {

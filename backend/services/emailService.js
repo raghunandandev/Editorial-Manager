@@ -158,3 +158,65 @@ exports.sendQueryReply = async (userEmail, reply, originalQuery) => {
 
   await transporter.sendMail(mailOptions);
 };
+
+exports.notifyAuthorPaymentRequest = async (authorEmail, manuscript, payment) => {
+  const mailOptions = {
+    from: config.FROM_EMAIL,
+    to: authorEmail,
+    subject: 'Publication Fee Request',
+    html: `
+      <h2>Publication Fee Request</h2>
+      <p>Your manuscript "${manuscript.title}" has been accepted by the editorial office.</p>
+      <p><strong>Amount:</strong> ${payment.amount}</p>
+      <p>Please complete the payment to proceed with publishing. You will receive a confirmation once payment is verified.</p>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+exports.notifyAuthorPaymentConfirmed = async (authorEmail, manuscript, payment) => {
+  const mailOptions = {
+    from: config.FROM_EMAIL,
+    to: authorEmail,
+    subject: 'Payment Confirmed - Manuscript Published',
+    html: `
+      <h2>Payment Confirmed</h2>
+      <p>Your payment for manuscript "${manuscript.title}" has been received and verified.</p>
+      <p>The manuscript is now published and available publicly.</p>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+exports.notifyAuthorPaymentFailed = async (authorEmail, manuscript, payment) => {
+  const mailOptions = {
+    from: config.FROM_EMAIL,
+    to: authorEmail,
+    subject: 'Payment Failed',
+    html: `
+      <h2>Payment Failed</h2>
+      <p>We were unable to verify your payment for manuscript "${manuscript.title}". Please try again or contact support.</p>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+exports.notifyEditorPaymentReceived = async (editorEmail, manuscript, payment) => {
+  const mailOptions = {
+    from: config.FROM_EMAIL,
+    to: editorEmail,
+    subject: 'Payment Received for Manuscript',
+    html: `
+      <h2>Payment Received</h2>
+      <p>A payment has been received for manuscript "${manuscript.title}".</p>
+      <p><strong>Amount:</strong> ${payment.amount}</p>
+      <p><strong>Payer:</strong> ${manuscript.correspondingAuthor?.email || 'Unknown'}</p>
+      <p>Please log in to review the manuscript status.</p>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+};

@@ -5,6 +5,8 @@ const config = require('../config/env');
 
 const auth = async (req, res, next) => {
   try {
+    // Allow CORS preflight requests to pass through without authentication
+    if (req.method === 'OPTIONS') return next();
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
     if (!token) {

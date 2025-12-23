@@ -78,8 +78,8 @@ exports.downloadAcceptedManuscript = async (req, res) => {
       });
     }
 
-    // Only allow download if status is accepted, published, or selected
-    if (!['accepted', 'published', 'selected'].includes(manuscript.status)) {
+    // Only allow download if published (payment confirmed) - NOT if just accepted
+    if (manuscript.status !== 'published' && manuscript.workflowStatus !== 'PUBLISHED') {
       return res.status(403).json({
         success: false,
         message: 'This manuscript is not available for download'
@@ -208,7 +208,8 @@ exports.submitManuscript = async (req, res) => {
 
     // Calculate pages and charges
     const pages = manuscriptFileData.pages;
-    const baseAmount = pages <= 6 ? 0 : 50;
+    // Minimum base charge: 5 for all manuscripts (regardless of page count)
+    const baseAmount = 5;
     const extraPages = pages > 6 ? pages - 6 : 0;
     const totalAmount = baseAmount + (extraPages * 10);
 
@@ -230,6 +231,9 @@ exports.submitManuscript = async (req, res) => {
         totalAmount
       }
     });
+
+    // Set workflowStatus explicitly for the new workflow (preserve legacy `status` value)
+    manuscript.workflowStatus = 'SUBMITTED';
 
     await manuscript.save();
 
@@ -326,9 +330,12 @@ exports.getAcceptedManuscripts = async (req, res) => {
   try {
     const { search } = req.query;
     
-    // Build filter for accepted manuscripts
+    // Only return PUBLISHED manuscripts (payment confirmed), NOT just accepted
     const filter = {
-      status: { $in: ['accepted', 'published', 'selected'] }
+      $or: [
+        { status: 'published' },
+        { workflowStatus: 'PUBLISHED' }
+      ]
     };
 
     // Add search filter if provided (case-insensitive)
@@ -339,8 +346,8 @@ exports.getAcceptedManuscripts = async (req, res) => {
     const manuscripts = await Manuscript.find(filter)
       .populate('authors.user', 'name email')
       .populate('correspondingAuthor', 'name email affiliation')
-      .select('title abstract keywords domain authors correspondingAuthor manuscriptFile status submissionDate')
-      .sort({ submissionDate: -1 });
+      .select('title abstract keywords domain authors correspondingAuthor manuscriptFile status workflowStatus submissionDate publishedAt')
+      .sort({ publishedAt: -1 });
 
     res.json({
       success: true,
@@ -356,5 +363,77 @@ exports.getAcceptedManuscripts = async (req, res) => {
       message: 'Error fetching manuscripts',
       error: error.message
     });
+  }
+};
+
+// Public endpoint to fetch all published manuscripts (no authentication required)
+exports.getPublishedManuscripts = async (req, res) => {
+  try {
+    const { search } = req.query;
+
+    const filter = {
+      $or: [
+        { workflowStatus: 'PUBLISHED' },
+        { status: 'published' }
+      ]
+    };
+
+    if (search && search.trim()) {
+      filter.title = { $regex: search.trim(), $options: 'i' };
+    }
+
+    const manuscripts = await Manuscript.find(filter)
+      .populate('authors.user', 'name email')
+      .populate('correspondingAuthor', 'name email affiliation')
+      .select('title abstract keywords domain authors correspondingAuthor manuscriptFile status workflowStatus submissionDate publishedAt')
+      .sort({ publishedAt: -1 });
+
+    res.json({
+      success: true,
+      data: { manuscripts, count: manuscripts.length }
+    });
+  } catch (error) {
+    console.error('Error fetching published manuscripts:', error);
+    res.status(500).json({ success: false, message: 'Error fetching manuscripts', error: error.message });
+  }
+};
+
+// Public endpoint to download a published manuscript
+exports.downloadPublishedManuscript = async (req, res) => {
+  try {
+    const manuscript = await Manuscript.findById(req.params.id);
+
+    if (!manuscript || !manuscript.manuscriptFile?.url) {
+      return res.status(404).json({ success: false, message: 'Manuscript not found or file is missing' });
+    }
+
+    // Allow only published manuscripts for public download
+    if (!(manuscript.workflowStatus === 'PUBLISHED' || manuscript.status === 'published')) {
+      return res.status(403).json({ success: false, message: 'This manuscript is not publicly available' });
+    }
+
+    if (manuscript.manuscriptFile.public_id && !manuscript.manuscriptFile.public_id.startsWith('local_')) {
+      const fileUrl = cloudinary.url(manuscript.manuscriptFile.public_id, {
+        resource_type: 'raw',
+        flags: 'attachment',
+        attachment: true,
+        secure: true
+      });
+      return res.json({ success: true, downloadUrl: fileUrl });
+    } else if (manuscript.manuscriptFile.url && manuscript.manuscriptFile.url.includes('cloudinary.com')) {
+      try {
+        const url = new URL(manuscript.manuscriptFile.url);
+        url.searchParams.set('fl', 'attachment');
+        return res.json({ success: true, downloadUrl: url.toString() });
+      } catch (e) {
+        return res.json({ success: true, downloadUrl: manuscript.manuscriptFile.url });
+      }
+    }
+
+    const filePath = path.join(__dirname, '..', manuscript.manuscriptFile.url);
+    res.download(filePath, `manuscript-${manuscript._id}.pdf`);
+  } catch (error) {
+    console.error('Download published error:', error);
+    res.status(500).json({ success: false, message: 'Error downloading manuscript' });
   }
 };

@@ -15,6 +15,7 @@ const adminRoutes = require('./routes/admin');
 const queryRoutes = require('./routes/queries');
 const editorialRoutes = require('./routes/editorial');
 const editorProfileRoutes = require('./routes/editorProfile');
+const paymentRoutes = require('./routes/payment');
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.use('/api/manuscripts', manuscriptRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/queries', queryRoutes);
+app.use('/api/payments', paymentRoutes);
 // Public editorial board endpoint
 app.use('/api', editorialRoutes);
 // Editor profile endpoint

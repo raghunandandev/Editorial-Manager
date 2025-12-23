@@ -16,7 +16,7 @@ import {
   Mail,
   Building
 } from 'lucide-react';
-import { manuscriptAPI, downloadManuscriptFile } from '../../services/api';
+import { manuscriptAPI, downloadManuscriptFile, paymentAPI } from '../../services/api';
 
 const ViewManuscript = () => {
   const { id } = useParams();
@@ -56,18 +56,38 @@ const ViewManuscript = () => {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'submitted': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'under_review': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'revisions_required': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'accepted': return 'bg-green-100 text-green-800 border-green-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
+  const getStatusColor = (workflowStatus, legacyStatus) => {
+    // Use workflow status for colors if available
+    const status = workflowStatus || legacyStatus;
+    
+    if (status === 'SUBMITTED' || status === 'submitted') return 'bg-blue-100 text-blue-800 border-blue-200';
+    if (status === 'UNDER_REVIEW' || status === 'under_review') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    if (status === 'REVIEW_IN_PROGRESS' || status === 'REVIEW_ACCEPTED') return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    if (status === 'EDITOR_ACCEPTED' || status === 'PAYMENT_PENDING') return 'bg-amber-100 text-amber-800 border-amber-200';
+    if (status === 'accepted') return 'bg-green-100 text-green-800 border-green-200';
+    if (status === 'revisions_required') return 'bg-orange-100 text-orange-800 border-orange-200';
+    if (status === 'rejected') return 'bg-red-100 text-red-800 border-red-200';
+    if (status === 'PUBLISHED' || status === 'published') return 'bg-green-100 text-green-800 border-green-200';
+    
+    return 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
-  const getStatusText = (status) => {
+  const getStatusText = (workflowStatus, legacyStatus) => {
+    // Priority: show workflow status if available
+    if (workflowStatus) {
+      const workflowMap = {
+        'SUBMITTED': 'Submitted',
+        'UNDER_REVIEW': 'Under Review',
+        'REVIEW_IN_PROGRESS': 'Review In Progress',
+        'REVIEW_ACCEPTED': 'Accepted by Reviewers',
+        'EDITOR_ACCEPTED': 'Accepted by Editor',
+        'PAYMENT_PENDING': 'Pending Payment',
+        'PUBLISHED': 'Published'
+      };
+      return workflowMap[workflowStatus] || workflowStatus;
+    }
+    
+    // Fallback to legacy status
     const statusMap = {
       'submitted': 'Submitted',
       'under_review': 'Under Review',
@@ -76,7 +96,7 @@ const ViewManuscript = () => {
       'rejected': 'Rejected',
       'published': 'Published'
     };
-    return statusMap[status] || status;
+    return statusMap[legacyStatus] || legacyStatus;
   };
 
   const formatDate = (dateString) => {
@@ -180,8 +200,8 @@ const ViewManuscript = () => {
               <h2 className="mb-4 text-xl font-semibold text-gray-900">Submission Status</h2>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`px-4 py-2 rounded-full border ${getStatusColor(manuscript.status)}`}>
-                    <span className="font-medium">{getStatusText(manuscript.status)}</span>
+                  <div className={`px-4 py-2 rounded-full border ${getStatusColor(manuscript.workflowStatus, manuscript.status)}`}>
+                    <span className="font-medium">{getStatusText(manuscript.workflowStatus, manuscript.status)}</span>
                   </div>
                   {getStatusIcon(manuscript.status)}
                 </div>
@@ -298,7 +318,7 @@ const ViewManuscript = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Publication Charges:</span>
                       <span className="font-medium text-gray-900">
-                        ${manuscript.publicationCharges.totalAmount || 0}
+                        ₹{manuscript.publicationCharges.totalAmount || 0}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -310,6 +330,25 @@ const ViewManuscript = () => {
                       </span>
                     </div>
                   </>
+                )}
+                {/* Payment history */}
+                {manuscript.payments && manuscript.payments.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="mb-2 text-sm font-semibold text-gray-900">Payment History</h3>
+                    <div className="space-y-2">
+                      {manuscript.payments.map((p, idx) => (
+                        <div key={idx} className="flex items-center justify-between rounded bg-gray-50 p-2">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">₹{p.amount}</div>
+                            <div className="text-xs text-gray-600">{new Date(p.timestamp).toLocaleString()}</div>
+                          </div>
+                          <div className={`text-sm ${p.status === 'confirmed' || p.status === 'paid' ? 'text-green-600' : p.status === 'pending' ? 'text-amber-600' : 'text-red-600'}`}>
+                            {p.status}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -358,6 +397,82 @@ const ViewManuscript = () => {
                   <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700">
                     <Edit size={18} />
                     Submit Revision
+                  </button>
+                )}
+                {/* Payment button: shown when payment is pending or editor accepted and not paid */}
+                {((manuscript.workflowStatus === 'PAYMENT_PENDING') || (manuscript.status === 'accepted' && !manuscript.publicationCharges?.isPaid)) && (
+                  <button onClick={async () => {
+                    try {
+                      // Debug: log manuscript data to console
+                      console.log('Manuscript data for payment:', {
+                        id: manuscript._id,
+                        publicationCharges: manuscript.publicationCharges,
+                        workflowStatus: manuscript.workflowStatus,
+                        status: manuscript.status
+                      });
+
+                      const resp = await paymentAPI.createOrder(manuscript._id);
+                      console.log('Create order response:', resp);
+                      
+                      // Check if response is valid (resp.data contains order and keyId)
+                      if (!resp || !resp.data || !resp.data.order || !resp.data.keyId) {
+                        const errorMsg = resp?.message || resp?.data?.message || 'Failed to create order';
+                        throw new Error(errorMsg);
+                      }
+
+                      const { order, keyId } = resp.data;
+
+                      // Load Razorpay script if needed
+                      if (!window?.Razorpay) {
+                        await new Promise((resolve, reject) => {
+                          const script = document.createElement('script');
+                          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                          script.onload = resolve;
+                          script.onerror = reject;
+                          document.body.appendChild(script);
+                        });
+                      }
+
+                      const options = {
+                        key: keyId,
+                        amount: order.amount,
+                        currency: order.currency,
+                        name: manuscript.title,
+                        description: 'Publication fee',
+                        order_id: order.id,
+                        handler: async function (response) {
+                          try {
+                            await paymentAPI.verifyPayment({
+                              manuscriptId: manuscript._id,
+                              paymentId: response.razorpay_payment_id,
+                              amount: order.amount / 100,
+                              status: 'confirmed',
+                              razorpay_order_id: response.razorpay_order_id,
+                              razorpay_payment_id: response.razorpay_payment_id,
+                              razorpay_signature: response.razorpay_signature
+                            });
+                            alert('Payment successful. Manuscript will be published after verification.');
+                            window.location.reload();
+                          } catch (e) {
+                            console.error('Payment verification failed', e);
+                            alert('Payment verification failed. Please contact support.');
+                          }
+                        },
+                        prefill: {
+                          email: manuscript.correspondingAuthor?.email || ''
+                        }
+                      };
+
+                      // @ts-ignore
+                      const rzp = new window.Razorpay(options);
+                      rzp.open();
+                    } catch (e) {
+                      console.error('Payment failed:', e);
+                      const errorMsg = (e as any)?.response?.data?.message || (e as any)?.message || 'Unable to start payment';
+                      alert(errorMsg + '. Please try again or refresh the page.');
+                    }
+                  }} className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
+                    <span>Pay & Publish</span>
                   </button>
                 )}
               </div>

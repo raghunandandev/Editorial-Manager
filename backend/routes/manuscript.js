@@ -18,6 +18,9 @@ const router = express.Router();
 // Public routes - no authentication required
 router.get('/accepted', getAcceptedManuscripts);
 router.get('/accepted/:id/download', downloadAcceptedManuscript);
+// Public published endpoints
+router.get('/published', require('../controllers/manuscriptController').getPublishedManuscripts);
+router.get('/published/:id/download', require('../controllers/manuscriptController').downloadPublishedManuscript);
 
 router.post('/submit', 
   [

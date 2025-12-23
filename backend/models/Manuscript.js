@@ -53,6 +53,20 @@ const manuscriptSchema = new mongoose.Schema({
     ],
     default: 'submitted'
   },
+  // New workflowStatus (preserves existing lowercase `status` for backwards compatibility)
+  workflowStatus: {
+    type: String,
+    enum: [
+      'SUBMITTED',
+      'UNDER_REVIEW',
+      'REVIEW_IN_PROGRESS',
+      'REVIEW_ACCEPTED',
+      'EDITOR_ACCEPTED',
+      'PAYMENT_PENDING',
+      'PUBLISHED'
+    ],
+    default: 'SUBMITTED'
+  },
   submissionDate: {
     type: Date,
     default: Date.now
@@ -77,6 +91,16 @@ const manuscriptSchema = new mongoose.Schema({
     totalAmount: { type: Number, default: 0 },
     isPaid: { type: Boolean, default: false }
   }
+  ,
+  // Store payment attempts/metadata for audits and verification
+  payments: [{
+    paymentId: String,
+    amount: Number,
+    timestamp: Date,
+    status: String,
+    metadata: Object
+  }],
+  publishedAt: Date
 }, {
   timestamps: true
 });
