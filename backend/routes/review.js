@@ -216,7 +216,6 @@ router.get(
   '/manuscript/:manuscriptId',
   [
     auth,
-    authorize('editor', 'editorInChief'),
     param('manuscriptId')
       .isMongoId()
       .withMessage('Valid manuscript ID is required'),

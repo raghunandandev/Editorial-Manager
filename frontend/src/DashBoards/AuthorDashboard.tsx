@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, FileText, Clock, CheckCircle, XCircle, AlertCircle, Download, Eye } from 'lucide-react';
+import { Plus, FileText, Clock, CheckCircle, XCircle, AlertCircle, Download, Eye, MessageSquare } from 'lucide-react';
 import { manuscriptAPI, downloadManuscriptFile, authAPI } from '../services/api';
 
 const AuthorDashboard = () => {
@@ -11,6 +11,8 @@ const AuthorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [orcidEmail, setOrcidEmail] = useState<string | null>(null);
   const [orcidId, setOrcidId] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<{ [key: string]: any[] }>({});
+  const [expandedReviews, setExpandedReviews] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     fetchMyManuscripts();
@@ -28,6 +30,35 @@ const AuthorDashboard = () => {
     } catch (e) {
       // ignore profile fetch errors
     }
+  };
+
+  const fetchReviewsForManuscript = async (manuscriptId: string) => {
+    try {
+      const response = await fetch(`http://localhost:3000/api/reviews/manuscript/${manuscriptId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setReviews(prev => ({
+          ...prev,
+          [manuscriptId]: data?.data?.reviews || []
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+    }
+  };
+
+  const toggleReviewsExpanded = (manuscriptId: string) => {
+    if (!expandedReviews[manuscriptId] && !reviews[manuscriptId]) {
+      fetchReviewsForManuscript(manuscriptId);
+    }
+    setExpandedReviews(prev => ({
+      ...prev,
+      [manuscriptId]: !prev[manuscriptId]
+    }));
   };
 
   // const fetchMyManuscripts = async () => {
@@ -48,7 +79,10 @@ const AuthorDashboard = () => {
     try {
       const response = await manuscriptAPI.getMyManuscripts();
       if (response.success) {
-        setManuscripts(response.data.manuscripts || []);
+        const mss = response.data.manuscripts || [];
+        setManuscripts(mss);
+        // Fetch reviews for all manuscripts immediately
+        mss.forEach(m => fetchReviewsForManuscript(m._id));
       } else {
         console.error('Error in response:', response.message);
         // Only show alert for actual errors, not for successful data loading
@@ -185,38 +219,108 @@ const AuthorDashboard = () => {
             ) : (
               <div className="space-y-4">
                 {manuscripts.slice(0, 5).map((manuscript) => (
-                  <div key={manuscript._id} className="rounded-lg border border-gray-200 p-4 hover:bg-gray-50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="mb-1 font-semibold text-gray-900">{manuscript.title}</h3>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span>Domain: {manuscript.domain}</span>
-                          <span>Submitted: {formatDate(manuscript.submissionDate)}</span>
-                          <span>Status: 
-                            <span className={`ml-1 px-2 py-1 rounded text-xs ${getStatusColor(manuscript.status)}`}>
-                              {manuscript.status.replace('_', ' ')}
+                  <div key={manuscript._id} className="rounded-lg border border-gray-200 hover:bg-gray-50">
+                    <div className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="mb-1 font-semibold text-gray-900">{manuscript.title}</h3>
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <span>Domain: {manuscript.domain}</span>
+                            <span>Submitted: {formatDate(manuscript.submissionDate)}</span>
+                            <span>Status: 
+                              <span className={`ml-1 px-2 py-1 rounded text-xs ${getStatusColor(manuscript.status)}`}>
+                                {manuscript.status.replace('_', ' ')}
+                              </span>
                             </span>
-                          </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {getStatusIcon(manuscript.status)}
+                          <button
+                            onClick={() => handleDownload(manuscript)}
+                            className="p-1 text-blue-600 hover:text-blue-800"
+                            title="Download"
+                          >
+                            <Download size={16} />
+                          </button>
+                          <Link
+                            to={`/manuscript/${manuscript._id}`}
+                            className="p-1 text-green-600 hover:text-green-800"
+                            title="View Details"
+                          >
+                            <Eye size={16} />
+                          </Link>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        {getStatusIcon(manuscript.status)}
-                        <button
-                          onClick={() => handleDownload(manuscript)}
-                          className="p-1 text-blue-600 hover:text-blue-800"
-                          title="Download"
-                        >
-                          <Download size={16} />
-                        </button>
-                        <Link
-                          to={`/manuscript/${manuscript._id}`}
-                          className="p-1 text-green-600 hover:text-green-800"
-                          title="View Details"
-                        >
-                          <Eye size={16} />
-                        </Link>
-                      </div>
                     </div>
+                    
+                    {/* Reviewer Comments Section */}
+                    {reviews[manuscript._id] && reviews[manuscript._id].length > 0 && (
+                      <div className="border-t border-gray-200">
+                        <button
+                          onClick={() => toggleReviewsExpanded(manuscript._id)}
+                          className="w-full bg-blue-50 px-4 py-3 text-left hover:bg-blue-100"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <MessageSquare size={16} className="text-blue-600" />
+                              <span className="font-medium text-blue-900">
+                                {reviews[manuscript._id].length} Review(s)
+                              </span>
+                            </div>
+                            <span className="text-sm text-blue-700">
+                              {expandedReviews[manuscript._id] ? '▼' : '▶'}
+                            </span>
+                          </div>
+                        </button>
+                        
+                        {expandedReviews[manuscript._id] && (
+                          <div className="divide-y divide-gray-200 bg-gray-50 p-4">
+                            {reviews[manuscript._id].map((review, idx) => (
+                              <div key={idx} className="py-4 first:pt-0">
+                                <div className="mb-3 flex items-center justify-between">
+                                  <div>
+                                    <p className="font-medium text-gray-900">
+                                      {review.reviewer?.firstName} {review.reviewer?.lastName}
+                                    </p>
+                                    <p className="text-xs text-gray-600">{review.reviewer?.email}</p>
+                                  </div>
+                                  <span className={`rounded px-2 py-1 text-xs font-semibold ${
+                                    review.recommendation === 'accept' ? 'bg-green-100 text-green-800' :
+                                    review.recommendation === 'minor_revisions' ? 'bg-yellow-100 text-yellow-800' :
+                                    review.recommendation === 'major_revisions' ? 'bg-orange-100 text-orange-800' :
+                                    'bg-red-100 text-red-800'
+                                  }`}>
+                                    {review.recommendation.replace(/_/g, ' ').toUpperCase()}
+                                  </span>
+                                </div>
+                                
+                                {/* Average Score */}
+                                {review.scores && (
+                                  <div className="mb-2 text-xs font-medium text-gray-700">
+                                    Average Score: {(
+                                      (review.scores.originality + review.scores.methodology + 
+                                       review.scores.contribution + review.scores.clarity + 
+                                       review.scores.references) / 5
+                                    ).toFixed(2)}/5
+                                  </div>
+                                )}
+                                
+                                {/* Comments to Author */}
+                                {review.commentsToAuthor && (
+                                  <div className="mt-3 rounded bg-white p-3">
+                                    <p className="text-xs font-semibold text-gray-700 uppercase">Reviewer Comments:</p>
+                                    <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">
+                                      {review.commentsToAuthor}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

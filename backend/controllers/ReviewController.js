@@ -555,12 +555,58 @@ exports.getManuscriptReviews = async (req, res) => {
   try {
     const { manuscriptId } = req.params;
 
+    // Verify user is either editor/admin or the author of the manuscript
+    const manuscript = await Manuscript.findById(manuscriptId);
+    if (!manuscript) {
+      return res.status(404).json({
+        success: false,
+        message: 'Manuscript not found'
+      });
+    }
+
+    const isEditor = req.user.roles?.editorInChief || req.user.roles?.editor;
+    const isAuthor = String(manuscript.correspondingAuthor) === String(req.user.id);
+
+    if (!isEditor && !isAuthor) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to view reviews for this manuscript'
+      });
+    }
+
     const reviews = await Review.find({ manuscript: manuscriptId })
       .populate('reviewer', 'firstName lastName email profile.expertise profile.affiliation')
       .sort({ submittedDate: -1 });
 
+    // If requester is the corresponding author (not an editor), hide reviewer identity
+    if (isAuthor && !isEditor) {
+      reviews.forEach(r => {
+        if (r.reviewer && typeof r.reviewer === 'object') {
+          // replace name with anonymous label and remove email
+          try {
+            r.reviewer.firstName = 'Anonymous';
+            r.reviewer.lastName = 'Reviewer';
+            r.reviewer.email = undefined;
+          } catch (e) {
+            // ignore if structure differs
+          }
+        }
+      });
+    }
+
     // Calculate overall decision
     const decision = calculateOverallDecision(reviews);
+
+    // If requester is Editor-in-Chief, hide comments intended for authors
+    if (req.user.roles && req.user.roles.editorInChief) {
+      reviews.forEach(r => {
+        try {
+          r.commentsToAuthor = undefined;
+        } catch (e) {
+          // ignore
+        }
+      });
+    }
 
     res.json({
       success: true,
