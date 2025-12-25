@@ -65,6 +65,13 @@ interface ManuscriptForReview {
   keywords: string[];
   domain: string;
   submissionDate: string;
+  currentRound?: number;
+  isRevised?: boolean;
+  revisionHistory?: Array<{
+    round: number;
+    submittedDate: string;
+    notes?: string;
+  }>;
   manuscriptFile: {
     url: string;
     public_id: string;
@@ -155,11 +162,34 @@ const ReviewerDashboard: React.FC = () => {
   const handleViewManuscript = async (assignment: ReviewAssignment) => {
     try {
       const res = await reviewerAPI.getManuscriptForReview(assignment.manuscript._id);
-      if (res.success) {
-        setViewingManuscript(res.data.manuscript);
+
+      // Debug: log full response so developers can inspect payload in browser console
+      // (will appear in DevTools Console when reviewer clicks 'Review')
+      try {
+        // `res` is expected to be the API body: { success, data }
+        // Log both top-level and nested data for easier debugging
+        // eslint-disable-next-line no-console
+        console.log('[DEBUG] getManuscriptForReview response:', res);
+        // eslint-disable-next-line no-console
+        console.log('[DEBUG] nested manuscript payload:', res?.data?.manuscript || res?.manuscript);
+      } catch (logErr) {
+        // ignore logging errors
+      }
+
+      if (res && res.success) {
+        // Normalize manuscript object to ensure revision fields are present
+        const rawMan = res.data?.manuscript || res.manuscript || res;
+        const manuscript = {
+          ...rawMan,
+          currentRound: rawMan?.currentRound || rawMan?.currentRound === 0 ? rawMan.currentRound : rawMan?.currentRound || 1,
+          revisionHistory: rawMan?.revisionHistory || rawMan?.revisions || [] ,
+          isRevised: (rawMan?.revisionHistory && rawMan.revisionHistory.length > 0) || (rawMan?.revisions && rawMan.revisions.length > 0) || false
+        } as ManuscriptForReview;
+
+        setViewingManuscript(manuscript);
         setShowReviewForm(false);
       } else {
-        setMessage({ type: 'error', text: res.message || 'Failed to load manuscript' });
+        setMessage({ type: 'error', text: res?.message || 'Failed to load manuscript' });
       }
     } catch (error: any) {
       setMessage({ type: 'error', text: error.response?.data?.message || error.message || 'Failed to load manuscript' });
@@ -376,6 +406,48 @@ const handleDownloadManuscript = async (manuscriptId: string) => {
                   ))}
                 </div>
               </div>
+
+              {/* Review Round Info */}
+              <div className="rounded-lg bg-blue-50 p-4 border border-blue-200">
+                <p className="font-semibold text-blue-900">Review Round: {viewingManuscript.currentRound || 1}</p>
+                {viewingManuscript.isRevised && (
+                  <p className="text-sm text-blue-800 mt-1">
+                    ✓ This is a revised manuscript submitted by the author
+                  </p>
+                )}
+              </div>
+
+              {/* Revision History */}
+              {viewingManuscript.revisionHistory && viewingManuscript.revisionHistory.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3">Revision History</h3>
+                  <div className="space-y-3">
+                    {viewingManuscript.revisionHistory.map((revision, idx) => (
+                      <div key={idx} className="rounded-lg border border-gray-200 p-3 bg-gray-50">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">Round {revision.round}</p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              Submitted: {new Date(revision.submittedDate).toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        {revision.notes && (
+                          <p className="text-sm text-gray-700 mt-2 p-2 bg-white rounded border border-gray-100">
+                            <span className="font-semibold">Author Notes:</span> {revision.notes}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {viewingManuscript.manuscriptFile?.url && (
                 <div>
@@ -715,6 +787,11 @@ const handleDownloadManuscript = async (manuscriptId: string) => {
                             <span>Domain: {assignment.manuscript.domain}</span>
                             <span>Author: {assignment.manuscript.correspondingAuthor.firstName} {assignment.manuscript.correspondingAuthor.lastName}</span>
                             <span>Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>
+                            {((assignment.manuscript.revisionHistory && assignment.manuscript.revisionHistory.length > 0) || (assignment.manuscript.revisions && assignment.manuscript.revisions.length > 0) || (assignment.manuscript.currentRound && assignment.manuscript.currentRound > 1)) && (
+                              <span className="ml-2 inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold bg-orange-100 text-orange-800">
+                                Revised{assignment.manuscript.currentRound ? ` (R${assignment.manuscript.currentRound})` : ''}
+                              </span>
+                            )}
                             {assignment.review && (
                               <span className="flex items-center gap-1">
                                 <Star size={14} className="text-yellow-500" />

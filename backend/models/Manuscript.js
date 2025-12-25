@@ -75,6 +75,17 @@ const manuscriptSchema = new mongoose.Schema({
     type: Number,
     default: 1
   },
+  revisions: [{
+    round: Number,
+    submittedDate: Date,
+    notes: String,
+    file: {
+      public_id: String,
+      url: String,
+      pages: Number,
+      size: Number
+    }
+  }],
   assignedEditors: [{
     editor: {
       type: mongoose.Schema.Types.ObjectId,

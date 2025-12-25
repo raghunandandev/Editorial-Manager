@@ -296,6 +296,15 @@ export const manuscriptAPI = {
       responseType: 'blob'
     });
   },
+
+  // Submit revision for a manuscript
+  submitRevision: (manuscriptId: string, formData) => {
+    return api.post(`/manuscripts/${manuscriptId}/submit-revision`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
 };
 
 export const paymentAPI = {

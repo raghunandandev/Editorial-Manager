@@ -2,6 +2,8 @@
 
 const Manuscript = require('../models/Manuscript');
 const User = require('../models/User');
+const Assignment = require('../models/Assignment');
+const Review = require('../models/Review');
 const { uploadToCloudinary } = require('../middleware/upload');
 const emailService = require('../services/emailService');
 const { validationResult } = require('express-validator');
@@ -312,6 +314,21 @@ exports.getManuscript = async (req, res) => {
       });
     }
 
+    // If the requester is an editor/admin include review history and revision details
+    if (isEditor) {
+      try {
+        const reviews = await Review.find({ manuscript: manuscript._id })
+          .populate('reviewer', 'firstName lastName email')
+          .sort({ submittedDate: 1 });
+
+        // send manuscript and reviews together for admin/editor UI
+        return res.json({ success: true, data: { manuscript, reviews } });
+      } catch (e) {
+        console.warn('Failed to load reviews for manuscript:', e.message);
+        return res.json({ success: true, data: { manuscript } });
+      }
+    }
+
     res.json({
       success: true,
       data: { manuscript }
@@ -435,5 +452,168 @@ exports.downloadPublishedManuscript = async (req, res) => {
   } catch (error) {
     console.error('Download published error:', error);
     res.status(500).json({ success: false, message: 'Error downloading manuscript' });
+  }
+};
+
+// Submit revision for a manuscript that requires revisions
+exports.submitRevision = async (req, res) => {
+  try {
+    const { manuscriptId } = req.params;
+    const { revisionNotes } = req.body;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Revised manuscript file is required'
+      });
+    }
+
+    // Find manuscript
+    const manuscript = await Manuscript.findById(manuscriptId);
+    if (!manuscript) {
+      return res.status(404).json({
+        success: false,
+        message: 'Manuscript not found'
+      });
+    }
+
+    // Check if user is the corresponding author
+    if (manuscript.correspondingAuthor.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to submit revisions for this manuscript'
+      });
+    }
+
+    // Check if manuscript status requires revisions
+    if (manuscript.status !== 'revisions_required') {
+      return res.status(400).json({
+        success: false,
+        message: 'This manuscript does not require revisions'
+      });
+    }
+
+    // Upload revised file
+    let manuscriptFileData;
+    try {
+      const cloudinaryResult = await uploadToCloudinary(req.file.buffer);
+      manuscriptFileData = {
+        public_id: cloudinaryResult.public_id,
+        url: cloudinaryResult.secure_url,
+        pages: 1,
+        size: req.file.size
+      };
+    } catch (cloudinaryError) {
+      console.warn('Cloudinary upload failed:', cloudinaryError.message);
+      manuscriptFileData = {
+        public_id: `local_${Date.now()}`,
+        url: `/uploads/${req.file.filename}`,
+        pages: 1,
+        size: req.file.size
+      };
+    }
+
+    // Increment round
+    manuscript.currentRound = (manuscript.currentRound || 1) + 1;
+    
+    // Update manuscript file and status
+    manuscript.manuscriptFile = manuscriptFileData;
+    manuscript.status = 'under_review';
+    manuscript.workflowStatus = 'REVIEW_IN_PROGRESS';
+    
+    // Store revision info
+    if (!manuscript.revisions) {
+      manuscript.revisions = [];
+    }
+    manuscript.revisions.push({
+      round: manuscript.currentRound,
+      submittedDate: new Date(),
+      notes: revisionNotes || '',
+      file: manuscriptFileData
+    });
+
+    await manuscript.save();
+
+    // Notify assigned editors about the revised manuscript
+    if (manuscript.assignedEditors && manuscript.assignedEditors.length > 0) {
+      try {
+        const editorIds = manuscript.assignedEditors.map(e => e.editor);
+        const editors = await User.find({ _id: { $in: editorIds } });
+        for (const editor of editors) {
+          await emailService.notifyRevisionSubmitted(editor.email, manuscript);
+        }
+      } catch (emailError) {
+        console.error('Email notification failed:', emailError);
+      }
+    }
+
+    // Re-create review assignments for previous reviewers so they can re-review the revised manuscript
+    // Deduplicate reviewers and avoid creating assignments that already exist for this round
+    let createdAssignments = [];
+    try {
+      const prevAssignments = await Assignment.find({ manuscript: manuscript._id, status: 'completed' });
+      if (prevAssignments && prevAssignments.length > 0) {
+        const uniqueReviewerIds = [...new Set(prevAssignments.map(pa => pa.reviewer.toString()))];
+        const dueOffsetMs = 14 * 24 * 60 * 60 * 1000; // 14 days
+        for (const reviewerId of uniqueReviewerIds) {
+          // skip if an assignment for this manuscript/reviewer/round already exists
+          const existing = await Assignment.findOne({
+            manuscript: manuscript._id,
+            reviewer: reviewerId,
+            round: manuscript.currentRound,
+            status: { $in: ['pending', 'accepted'] }
+          });
+          if (existing) continue;
+
+          // find an editor to attribute (use first completed assignment's editor if available)
+          const pa = prevAssignments.find(p => p.reviewer.toString() === reviewerId.toString());
+          const editorForAssignment = pa ? pa.editor : (manuscript.assignedEditors && manuscript.assignedEditors[0] && manuscript.assignedEditors[0].editor) || null;
+
+          const newAssignment = new Assignment({
+            manuscript: manuscript._id,
+            reviewer: reviewerId,
+            editor: editorForAssignment,
+            assignedBy: req.user.id,
+            dueDate: new Date(Date.now() + dueOffsetMs),
+            status: 'pending',
+            round: manuscript.currentRound
+          });
+          await newAssignment.save();
+          createdAssignments.push(newAssignment._id);
+
+          // small log to help debugging
+          console.log('Created new revision assignment', { manuscript: manuscript._id.toString(), reviewer: reviewerId.toString(), assignment: newAssignment._id.toString(), round: manuscript.currentRound });
+
+          // Notify the reviewer by email if available
+          try {
+            const reviewerUser = await User.findById(reviewerId);
+            if (reviewerUser && reviewerUser.email) {
+              await emailService.notifyReviewAssignment(reviewerUser.email, manuscript, newAssignment);
+            }
+          } catch (notifyErr) {
+            console.error('Failed to notify reviewer about revision assignment:', notifyErr);
+          }
+        }
+      }
+    } catch (assignErr) {
+      console.error('Error recreating assignments for revised manuscript:', assignErr);
+    }
+
+    res.json({
+      success: true,
+      message: 'Revision submitted successfully',
+      data: {
+        manuscript,
+        newRound: manuscript.currentRound,
+        createdAssignments
+      }
+    });
+  } catch (error) {
+    console.error('Submit revision error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error submitting revision',
+      error: process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message
+    });
   }
 };

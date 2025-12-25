@@ -12,3 +12,4 @@ const authProviderSchema = new mongoose.Schema({
 authProviderSchema.index({ provider: 1, providerId: 1 }, { unique: true });
 
 module.exports = mongoose.model('AuthProvider', authProviderSchema);
+ 

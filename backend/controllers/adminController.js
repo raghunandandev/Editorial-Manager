@@ -65,10 +65,16 @@ exports.getDashboardStats = async (_req, res) => {
 
 exports.getPendingManuscripts = async (_req, res) => {
   try {
+    // Include manuscripts that are submitted, under review, or require revisions,
+    // and also include ones flagged in the new workflowReview states
     const manuscripts = await Manuscript.find({
-      status: { $in: ['submitted', 'under_review'] }
+      $or: [
+        { status: { $in: ['submitted', 'under_review', 'revisions_required'] } },
+        { workflowStatus: { $in: ['UNDER_REVIEW', 'REVIEW_IN_PROGRESS'] } }
+      ]
     })
       .populate('correspondingAuthor', 'firstName lastName')
+      .populate('assignedEditors.editor', 'firstName lastName email')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -82,7 +88,10 @@ exports.getPendingManuscripts = async (_req, res) => {
             : 'Unknown',
           domain: m.domain,
           submittedOn: m.submissionDate,
-          status: m.status
+          status: m.status,
+          currentRound: m.currentRound || 1,
+          // expose revision summary so admin can quickly see if revisions exist
+          revisions: (m.revisions || []).map(r => ({ round: r.round, submittedDate: r.submittedDate }))
         }))
       }
     });
@@ -145,6 +154,7 @@ exports.assignReviewer = async (req, res) => {
       reviewer: reviewerId,
       editor,
       assignedBy: editor,
+      round: manuscript.currentRound || 1,
       dueDate: dueDate ? new Date(dueDate) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
     });
 

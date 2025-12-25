@@ -7,8 +7,10 @@ const {
   getManuscript,
   downloadManuscript,
   downloadAcceptedManuscript,
-  getAcceptedManuscripts
+  getAcceptedManuscripts,
+  submitRevision
 } = require('../controllers/manuscriptController');
+
 const { auth, authorize } = require('../middleware/auth');
 const requireOrcidVerification = require('../middleware/requireOrcidVerification');
 const { upload, handleUploadErrors } = require('../middleware/upload'); // Updated import
@@ -41,5 +43,18 @@ router.post('/submit',
 router.get('/my-manuscripts', auth, authorize('author'), getMyManuscripts);
 router.get('/:id', auth, getManuscript);
 router.get('/:id/download', auth, downloadManuscript);
+
+// Submit revision endpoint
+router.post('/:manuscriptId/submit-revision',
+  [
+    auth,
+    authorize('author'),
+    upload.single('revisionFile'),
+    body('revisionNotes').optional({ checkFalsy: true }).isString(),
+    validate,
+    handleUploadErrors
+  ],
+  submitRevision
+);
 
 module.exports = router;

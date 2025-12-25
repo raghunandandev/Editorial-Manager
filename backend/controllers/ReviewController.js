@@ -303,7 +303,8 @@ exports.getMyReviews = async (req, res) => {
     const assignments = await Assignment.find(query)
       .populate({
         path: 'manuscript',
-        select: 'title abstract domain status submissionDate manuscriptFile',
+        // include currentRound and revisions so reviewer list can show revised status
+        select: 'title abstract domain status submissionDate manuscriptFile currentRound revisions',
         populate: {
           path: 'correspondingAuthor',
           select: 'firstName lastName email profile.affiliation'
@@ -317,10 +318,33 @@ exports.getMyReviews = async (req, res) => {
 
     const total = await Assignment.countDocuments(query);
 
+    // De-duplicate by manuscript + round to avoid showing multiple assignment documents
+    // for the same reviewer/manuscript/round (keep the most recently created)
+    const deduped = [];
+    const seen = new Map();
+    for (const a of assignments) {
+      const manId = a.manuscript && a.manuscript._id ? a.manuscript._id.toString() : 'unknown';
+      const round = a.round || (a.manuscript && a.manuscript.currentRound) || 1;
+      const key = `${manId}_${round}`;
+      const existing = seen.get(key);
+      if (!existing) {
+        seen.set(key, a);
+        deduped.push(a);
+      } else {
+        // prefer assignment with later createdAt
+        if (a.createdAt && existing.createdAt && a.createdAt > existing.createdAt) {
+          // replace in deduped array
+          const idx = deduped.indexOf(existing);
+          if (idx !== -1) deduped[idx] = a;
+          seen.set(key, a);
+        }
+      }
+    }
+
     res.json({
       success: true,
       data: {
-        assignments,
+        assignments: deduped,
         pagination: {
           current: parseInt(page),
           pages: Math.ceil(total / limit),
@@ -528,13 +552,21 @@ exports.getManuscriptForReview = async (req, res) => {
       round: manuscript.currentRound
     });
 
+    // Build response with revision info
+    const response = {
+      manuscript: {
+        ...manuscript.toObject(),
+        currentRound: manuscript.currentRound,
+        revisionHistory: manuscript.revisions || [],
+        isRevised: manuscript.revisions && manuscript.revisions.length > 0
+      },
+      assignment,
+      existingReview
+    };
+
     res.json({
       success: true,
-      data: {
-        manuscript,
-        assignment,
-        existingReview
-      }
+      data: response
     });
   } catch (error) {
     console.error('Get manuscript for review error:', error);

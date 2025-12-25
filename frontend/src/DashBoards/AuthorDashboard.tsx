@@ -3,8 +3,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, FileText, Clock, CheckCircle, XCircle, AlertCircle, Download, Eye, MessageSquare } from 'lucide-react';
+import { Plus, FileText, Clock, CheckCircle, XCircle, AlertCircle, Download, Eye, MessageSquare, Upload } from 'lucide-react';
 import { manuscriptAPI, downloadManuscriptFile, authAPI } from '../services/api';
+
 
 const AuthorDashboard = () => {
   const [manuscripts, setManuscripts] = useState([]);
@@ -13,6 +14,10 @@ const AuthorDashboard = () => {
   const [orcidId, setOrcidId] = useState<string | null>(null);
   const [reviews, setReviews] = useState<{ [key: string]: any[] }>({});
   const [expandedReviews, setExpandedReviews] = useState<{ [key: string]: boolean }>({});
+  const [revisionFile, setRevisionFile] = useState<{ [key: string]: File }>({});
+  const [revisionNotes, setRevisionNotes] = useState<{ [key: string]: string }>({});
+  const [submittingRevision, setSubmittingRevision] = useState<{ [key: string]: boolean }>({});
+
 
   useEffect(() => {
     fetchMyManuscripts();
@@ -129,6 +134,56 @@ const AuthorDashboard = () => {
       year: 'numeric'
     });
   };
+
+  const handleRevisionSubmit = async (manuscriptId: string) => {
+    const file = revisionFile[manuscriptId];
+    if (!file) {
+      alert('Please select a file to submit');
+      return;
+    }
+
+    setSubmittingRevision(prev => ({
+      ...prev,
+      [manuscriptId]: true
+    }));
+
+    try {
+      const formData = new FormData();
+      formData.append('revisionFile', file);
+      if (revisionNotes[manuscriptId]) {
+        formData.append('revisionNotes', revisionNotes[manuscriptId]);
+      }
+
+      const response = await manuscriptAPI.submitRevision(manuscriptId, formData);
+      if (response.success) {
+        alert('Revision submitted successfully! Reviewers will review your revised manuscript.');
+        // Reset the form
+        setRevisionFile(prev => {
+          const newState = { ...prev };
+          delete newState[manuscriptId];
+          return newState;
+        });
+        setRevisionNotes(prev => {
+          const newState = { ...prev };
+          delete newState[manuscriptId];
+          return newState;
+        });
+        // Refresh manuscripts
+        await fetchMyManuscripts();
+      } else {
+        alert('Failed to submit revision: ' + response.message);
+      }
+    } catch (error) {
+      console.error('Error submitting revision:', error);
+      alert('Error submitting revision. Please try again.');
+    } finally {
+      setSubmittingRevision(prev => ({
+        ...prev,
+        [manuscriptId]: false
+      }));
+    }
+  };
+
 
   // const handleDownload = (manuscript) => {
   //   if (manuscript.manuscriptFile?.url) {
@@ -319,6 +374,74 @@ const AuthorDashboard = () => {
                             ))}
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Revision Submission Section - Show if status is revisions_required */}
+                    {manuscript.status === 'revisions_required' && (
+                      <div className="border-t border-orange-200 bg-orange-50 p-4">
+                        <div className="mb-4">
+                          <h4 className="mb-2 font-semibold text-orange-900">Submit Your Revised Manuscript</h4>
+                          <p className="mb-4 text-sm text-orange-800">
+                            The reviewers have requested revisions. Please upload your revised manuscript below.
+                          </p>
+                        </div>
+
+                        <div className="space-y-3">
+                          {/* File Input */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Upload Revised Manuscript *
+                            </label>
+                            <input
+                              type="file"
+                              accept=".pdf,.doc,.docx"
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                  setRevisionFile(prev => ({
+                                    ...prev,
+                                    [manuscript._id]: e.target.files![0]
+                                  }));
+                                }
+                              }}
+                              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                            />
+                            {revisionFile[manuscript._id] && (
+                              <p className="mt-1 text-xs text-green-600">
+                                ✓ {revisionFile[manuscript._id].name}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Notes Input */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Revision Notes (Optional)
+                            </label>
+                            <textarea
+                              placeholder="Briefly describe the changes you made in response to the reviewer feedback..."
+                              value={revisionNotes[manuscript._id] || ''}
+                              onChange={(e) => {
+                                setRevisionNotes(prev => ({
+                                  ...prev,
+                                  [manuscript._id]: e.target.value
+                                }));
+                              }}
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                              rows={3}
+                            />
+                          </div>
+
+                          {/* Submit Button */}
+                          <button
+                            onClick={() => handleRevisionSubmit(manuscript._id)}
+                            disabled={!revisionFile[manuscript._id] || submittingRevision[manuscript._id]}
+                            className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-white hover:bg-orange-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                          >
+                            <Upload size={16} />
+                            {submittingRevision[manuscript._id] ? 'Submitting...' : 'Submit Revision'}
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

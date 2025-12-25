@@ -26,6 +26,11 @@ const assignmentSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
+  // Track which review round this assignment belongs to
+  round: {
+    type: Number,
+    default: 1
+  },
   status: {
     type: String,
     enum: ['pending', 'accepted', 'declined', 'completed'],
