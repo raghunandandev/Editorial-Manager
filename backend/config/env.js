@@ -24,6 +24,12 @@ const config = {
   // Frontend URL to redirect after OAuth (set in env)
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
   
+  // ORCID OAuth
+  ORCID_CLIENT_ID: process.env.ORCID_CLIENT_ID,
+  ORCID_CLIENT_SECRET: process.env.ORCID_CLIENT_SECRET,
+  ORCID_REDIRECT_URI: process.env.ORCID_REDIRECT_URI,
+  ORCID_BASE_URL: process.env.ORCID_BASE_URL || 'https://orcid.org',
+  
   // Email
   SMTP_HOST: process.env.SMTP_HOST,
   SMTP_PORT: process.env.SMTP_PORT,

@@ -26,7 +26,7 @@
 // backend/routes/auth.js
 const express = require('express');
 const { authValidation } = require('../utils/validators');
-const { register, login, getProfile, googleRedirect, googleCallback } = require('../controllers/authController');
+const { register, login, getProfile, googleRedirect, googleCallback, googleLinkRedirect, orcidRedirect, orcidCallback, orcidLinkRedirect, orcidUnlink, orcidLinkUrl } = require('../controllers/authController');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -38,5 +38,15 @@ router.get('/profile', auth, getProfile);
 // Google OAuth routes (server-side flow)
 router.get('/google', googleRedirect);
 router.get('/google/callback', googleCallback);
+// Protected Google linking route
+router.get('/google/link', auth, googleLinkRedirect);
+
+// ORCID OAuth routes
+router.get('/orcid', orcidRedirect);
+router.get('/orcid/callback', orcidCallback);
+// Protected linking/unlinking endpoints
+router.get('/orcid/link', auth, orcidLinkRedirect);
+router.get('/orcid/link-url', auth, orcidLinkUrl);
+router.post('/orcid/unlink', auth, orcidUnlink);
 
 module.exports = router;

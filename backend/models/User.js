@@ -28,11 +28,24 @@ const userSchema = new mongoose.Schema({
   },
   provider: {
     type: String,
-    enum: ['google', 'local', null],
+    enum: ['google', 'local', 'orcid', null],
     default: 'local'
   },
   providerId: {
     type: String
+  },
+  // ORCID fields (optional)
+  orcidId: {
+    type: String
+  },
+  orcidVerified: {
+    type: Boolean,
+    default: false
+  },
+  // Whether the user's email has been verified (e.g., via Google OAuth)
+  emailVerified: {
+    type: Boolean,
+    default: false
   },
   roles: {
     author: { type: Boolean, default: true },

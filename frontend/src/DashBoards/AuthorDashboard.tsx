@@ -4,15 +4,31 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, FileText, Clock, CheckCircle, XCircle, AlertCircle, Download, Eye } from 'lucide-react';
-import { manuscriptAPI, downloadManuscriptFile } from '../services/api';
+import { manuscriptAPI, downloadManuscriptFile, authAPI } from '../services/api';
 
 const AuthorDashboard = () => {
   const [manuscripts, setManuscripts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [orcidEmail, setOrcidEmail] = useState<string | null>(null);
+  const [orcidId, setOrcidId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMyManuscripts();
+    fetchProfile();
   }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const resp: any = await authAPI.getProfile();
+      if (resp?.data?.user) {
+        const user = resp.data.user;
+        if (user.orcidVerified && user.orcidEmail) setOrcidEmail(user.orcidEmail);
+        if (user.orcidVerified && user.orcidId) setOrcidId(user.orcidId);
+      }
+    } catch (e) {
+      // ignore profile fetch errors
+    }
+  };
 
   // const fetchMyManuscripts = async () => {
   //   try {
@@ -114,6 +130,12 @@ const AuthorDashboard = () => {
         <div className="mb-8">
           <h1 className="mb-2 text-3xl font-bold text-gray-900">Author Dashboard</h1>
           <p className="text-gray-600">Manage your research manuscripts and track their status</p>
+          {orcidId && (
+            <p className="mt-1 text-sm text-gray-500">ORCID iD: <span className="font-medium text-gray-800">{orcidId}</span></p>
+          )}
+          {orcidEmail && (
+            <p className="mt-1 text-sm text-gray-500">ORCID email: <span className="font-medium text-gray-800">{orcidEmail}</span></p>
+          )}
         </div>
 
         {/* Action Buttons */}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { authAPI } from '../services/api';
 
 const tabs = [
   { name: "Articles & Issues", dropdown: true },
@@ -12,8 +13,41 @@ const tabs = [
 
 const NavBar: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string | null>(null);
-  const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
+  const userStored = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
   const currentRole = typeof window !== 'undefined' ? localStorage.getItem('currentRole') : null;
+  const [profile, setProfile] = React.useState(userStored);
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+  // Fetch fresh profile on mount / when token changes to ensure navbar reflects linked providers immediately
+  React.useEffect(() => {
+    const fetchProfile = async () => {
+      if (!token) return;
+      try {
+        const resp: any = await authAPI.getProfile();
+        const userFromApi = resp?.data?.user || resp?.data || resp?.user || resp;
+        if (userFromApi) {
+          setProfile(userFromApi);
+          try { localStorage.setItem('user', JSON.stringify(userFromApi)); } catch (e) {}
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    fetchProfile();
+    // listen for auth changes (login, provider link) from other components
+    window.addEventListener('auth_updated', fetchProfile as EventListener);
+    return () => {
+      window.removeEventListener('auth_updated', fetchProfile as EventListener);
+    };
+  }, [token]);
+
+  const linkedProviders = React.useMemo(() => {
+    try {
+      return (profile?.providers || []).map((p: any) => p.provider);
+    } catch (e) {
+      return [];
+    }
+  }, [profile]);
 
 
   const dropdownItems: Record<string, { text: string; href: string }[]> = {
@@ -113,11 +147,60 @@ const NavBar: React.FC = () => {
             {/* <a href="submit-article" className="text-brand-blue hover:underline">Submit your article</a> */}
             <Link to="/guide_for_authors" className="text-brand-blue hover:underline">Guide for authors</Link>
             {/* Role-based dashboard links */}
-            {(currentRole === 'editor' || user?.roles?.editor) && (
+            {(currentRole === 'editor' || profile?.roles?.editor) && (
               <Link to="/editor-dashboard" className="text-gray-700 hover:underline">Editor Dashboard</Link>
             )}
-            {(currentRole === 'editorInChief' || user?.roles?.editorInChief) && (
+            {(currentRole === 'editorInChief' || profile?.roles?.editorInChief) && (
               <Link to="/admin-dashboard" className="text-gray-700 hover:underline">Admin Dashboard</Link>
+            )}
+            {/* ORCID / Email verification buttons & status */}
+            {profile && (
+              <div className="flex items-center gap-3">
+                {/* ORCID status or verify button (authors only) */}
+                {profile.roles?.author && (
+                  profile.orcidVerified ? (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800 text-xs font-semibold">ORCID verified</span>
+                  ) : (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const resp: any = await authAPI.getOrcidLinkUrl();
+                          const url = resp?.url || resp?.data?.url;
+                          if (url) {
+                            window.location.href = url;
+                          } else {
+                            alert('Unable to initiate ORCID verification.');
+                          }
+                        } catch (err: any) {
+                          if (err.response?.status === 401) {
+                            window.location.href = '/login';
+                            return;
+                          }
+                          alert(err.response?.data?.message || 'Failed to start ORCID verification');
+                        }
+                      }}
+                      className="inline-flex items-center py-1 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-100"
+                    >
+                      Verify with ORCID
+                    </button>
+                  )
+                )}
+
+                {/* Email verification via Google for ORCID-only accounts */}
+                {linkedProviders.includes('orcid') && !linkedProviders.includes('google') && !profile.emailVerified && (
+                  <button
+                    onClick={() => { window.location.href = 'http://localhost:3000/api/auth/google'; }}
+                    className="inline-flex items-center py-1 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-100"
+                  >
+                    Verify email with Google
+                  </button>
+                )}
+
+                {/* Email verified badge */}
+                {profile.emailVerified && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800 text-xs font-semibold">Email verified</span>
+                )}
+              </div>
             )}
           </div>
         </div>

@@ -31,6 +31,7 @@ import CallForAuthorsList, { CallForAuthorsDetail } from "./pages/publish/call_f
 import SignUp from "./pages/sign_pages/signUp";
 import LogIn from "./pages/sign_pages/logIn";
 import GoogleCallback from "./pages/sign_pages/googleCallback";
+import OrcidCallback from "./pages/sign_pages/orcidCallback";
 import RoleSelection from "./pages/selection/roleSelection";
 import ProtectedRoute from "./components/protectedRoute";
 import AuthorDashboard from "./DashBoards/AuthorDashboard";
@@ -153,6 +154,7 @@ function App() {
             <Route path="/signup" element={<SignUp />} />
             <Route path="/login" element={<LogIn />} />
             <Route path="/auth/google/callback" element={<GoogleCallback />} />
+            <Route path="/auth/orcid/callback" element={<OrcidCallback />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/my-queries" element={<ProtectedRoute><QueryHistory /></ProtectedRoute>} />
 

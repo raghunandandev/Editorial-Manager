@@ -10,6 +10,7 @@ const {
   getAcceptedManuscripts
 } = require('../controllers/manuscriptController');
 const { auth, authorize } = require('../middleware/auth');
+const requireOrcidVerification = require('../middleware/requireOrcidVerification');
 const { upload, handleUploadErrors } = require('../middleware/upload'); // Updated import
 const { validate } = require('../middleware/validate'); // Add this middleware
 
@@ -26,6 +27,7 @@ router.post('/submit',
   [
     auth,
     authorize('author'),
+    requireOrcidVerification,
     upload.single('manuscript'), // Use the upload middleware
     body('title').notEmpty().withMessage('Title is required'),
     body('abstract').notEmpty().withMessage('Abstract is required'),

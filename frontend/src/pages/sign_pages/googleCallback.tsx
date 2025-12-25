@@ -56,6 +56,7 @@ const GoogleCallback = () => {
         // Small delay to ensure token is persisted
         setTimeout(() => {
           console.log('[GoogleCallback] Navigating to /role-selection');
+          try { window.dispatchEvent(new Event('auth_updated')); } catch (e) {}
           navigate('/role-selection', { replace: true });
         }, 100);
       } catch (error) {

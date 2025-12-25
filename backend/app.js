@@ -25,7 +25,7 @@ app.use(compression());
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 1 * 60 * 1000, // 1 minutes
   max: 100 // limit each IP to 100 requests per windowMs
 });
 app.use(limiter);
@@ -59,6 +59,12 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api', editorialRoutes);
 // Editor profile endpoint
 app.use('/api', editorProfileRoutes);
+
+// ORCID callback alias: accept callbacks aimed at /api/orcid/callback
+// (some external setups / ngrok may use this path; keep for compatibility)
+const authController = require('./controllers/authController');
+app.get('/api/orcid/callback', authController.orcidCallback);
+app.get('/api/orcid', authController.orcidRedirect);
 // Health check
 app.get('/health', (req, res) => {
   res.status(200).json({
