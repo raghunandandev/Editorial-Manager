@@ -1,5 +1,3 @@
-// models/EditorialMember.js
-// Read-only model for public editorial board members. Do not use for auth/roles.
 const mongoose = require('mongoose');
 
 const editorialMemberSchema = new mongoose.Schema({

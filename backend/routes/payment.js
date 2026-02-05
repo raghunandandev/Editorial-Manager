@@ -6,7 +6,6 @@ const { validate } = require('../middleware/validate');
 
 const router = express.Router();
 
-// Payment provider will call server-side verification endpoint
 router.post('/verify', [
   auth,
   body('manuscriptId').isMongoId(),
@@ -16,7 +15,6 @@ router.post('/verify', [
   validate
 ], verifyPayment);
 
-// Create Razorpay order for client-side checkout
 router.post('/create-order', [
   auth,
   body('manuscriptId').isMongoId(),

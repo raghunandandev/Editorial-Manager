@@ -16,9 +16,6 @@ const { validate } = require('../middleware/validate');
 
 const router = express.Router();
 
-// @route   POST /api/reviews/:manuscriptId/submit
-// @desc    Submit a review for a manuscript
-// @access  Private (Reviewer)
 router.post(
   '/:manuscriptId/submit',
   [
@@ -63,9 +60,6 @@ router.post(
   submitReview
 );
 
-// @route   PUT /api/reviews/:assignmentId/accept
-// @desc    Accept a review assignment
-// @access  Private (Reviewer)
 router.put(
   '/:assignmentId/accept',
   [
@@ -79,9 +73,6 @@ router.put(
   acceptReviewAssignment
 );
 
-// @route   PUT /api/reviews/:assignmentId/decline
-// @desc    Decline a review assignment
-// @access  Private (Reviewer)
 router.put(
   '/:assignmentId/decline',
   [
@@ -99,9 +90,6 @@ router.put(
   declineReviewAssignment
 );
 
-// @route   PUT /api/reviews/:reviewId
-// @desc    Update a review (before submission)
-// @access  Private (Reviewer)
 router.put(
   '/:reviewId',
   [
@@ -151,9 +139,6 @@ router.put(
   updateReview
 );
 
-// @route   GET /api/reviews/my-reviews
-// @desc    Get all review assignments for the logged-in reviewer
-// @access  Private (Reviewer)
 router.get(
   '/my-reviews',
   [
@@ -164,9 +149,6 @@ router.get(
   getMyReviews
 );
 
-// @route   GET /api/reviews/statistics
-// @desc    Get reviewer statistics
-// @access  Private (Reviewer)
 router.get(
   '/statistics',
   [
@@ -177,9 +159,6 @@ router.get(
   getReviewerStatistics
 );
 
-// @route   GET /api/reviews/:reviewId
-// @desc    Get specific review details
-// @access  Private (Reviewer, Editor, EditorInChief)
 router.get(
   '/:reviewId',
   [
@@ -193,9 +172,6 @@ router.get(
   getReviewDetails
 );
 
-// @route   GET /api/reviews/manuscript/:manuscriptId/for-review
-// @desc    Get manuscript details for review
-// @access  Private (Reviewer)
 router.get(
   '/manuscript/:manuscriptId/for-review',
   [
@@ -209,9 +185,6 @@ router.get(
   getManuscriptForReview
 );
 
-// @route   GET /api/reviews/manuscript/:manuscriptId
-// @desc    Get all reviews for a manuscript (for editors)
-// @access  Private (Editor, EditorInChief)
 router.get(
   '/manuscript/:manuscriptId',
   [

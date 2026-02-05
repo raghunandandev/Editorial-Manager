@@ -1,11 +1,9 @@
-// middleware/auth.js
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const config = require('../config/env');
 
 const auth = async (req, res, next) => {
   try {
-    // Allow CORS preflight requests to pass through without authentication
     if (req.method === 'OPTIONS') return next();
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
@@ -45,9 +43,7 @@ const auth = async (req, res, next) => {
 
 const authorize = (...roles) => {
   return (req, res, next) => {
-    const hasRole = roles.some(role => req.user.roles[role]);
-    
-    if (!hasRole) {
+    if (!roles.some(role => req.user.roles[role])) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. Insufficient permissions.'

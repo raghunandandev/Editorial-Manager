@@ -1,5 +1,3 @@
-// scripts/seedEditorial.js
-// Run with: node scripts/seedEditorial.js
 const mongoose = require('mongoose');
 const config = require('../config/env');
 const EditorialMember = require('../models/EditorialMember');
@@ -99,15 +97,12 @@ async function seedEditorial() {
     });
     console.log('✅ Connected to MongoDB');
 
-    // Clear existing data (optional - comment out to preserve)
     await EditorialMember.deleteMany({});
     console.log('🗑️ Cleared existing editorial members');
 
-    // Insert sample data
     const inserted = await EditorialMember.insertMany(sampleEditorialData);
     console.log(`✅ Inserted ${inserted.length} editorial members`);
 
-    // Log summary
     const editorInChief = await EditorialMember.findOne({ role: 'editor-in-chief' });
     const editors = await EditorialMember.countDocuments({ role: 'editor' });
     const advisory = await EditorialMember.countDocuments({ role: 'advisory' });

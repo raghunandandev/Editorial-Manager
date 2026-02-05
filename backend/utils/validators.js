@@ -1,8 +1,6 @@
-// backend/utils/validators.js
 const { body } = require('express-validator');
 const { isEmail } = require('validator');
 
-// Email validation using validator.js isEmail with custom error message
 const emailValidator = () => 
   body('email')
     .trim()
@@ -10,7 +8,6 @@ const emailValidator = () =>
     .isEmail().withMessage('Please enter a valid email address')
     .normalizeEmail();
 
-// Common validation rules for auth routes
 const authValidation = {
   register: [
     body('firstName').notEmpty().withMessage('First name is required'),

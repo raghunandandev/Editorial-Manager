@@ -1,6 +1,3 @@
-//AuthorDashboard.tsx
-
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, FileText, Clock, CheckCircle, XCircle, AlertCircle, Download, Eye, MessageSquare, Upload } from 'lucide-react';
@@ -25,7 +22,7 @@ const AuthorDashboard = () => {
   }, []);
 
   const fetchProfile = async () => {
-    try {
+    try { 
       const resp: any = await authAPI.getProfile();
       if (resp?.data?.user) {
         const user = resp.data.user;
@@ -33,7 +30,24 @@ const AuthorDashboard = () => {
         if (user.orcidVerified && user.orcidId) setOrcidId(user.orcidId);
       }
     } catch (e) {
-      // ignore profile fetch errors
+    }
+  };
+
+  const fetchMyManuscripts = async () => {
+    try {
+      const response = await manuscriptAPI.getMyManuscripts();
+      if (response.success) {
+        const mss = response.data.manuscripts || [];
+        setManuscripts(mss);
+        mss.forEach(m => fetchReviewsForManuscript(m._id));
+      } else {
+        if (response.message) {
+          alert(response.message);
+        }
+      }
+    } catch (error) {
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,7 +66,6 @@ const AuthorDashboard = () => {
         }));
       }
     } catch (error) {
-      console.error('Error fetching reviews:', error);
     }
   };
 
@@ -66,53 +79,14 @@ const AuthorDashboard = () => {
     }));
   };
 
-  // const fetchMyManuscripts = async () => {
-  //   try {
-  //     const response = await manuscriptAPI.getMyManuscripts();
-  //     if (response.data.success) {
-  //       setManuscripts(response.data.data.manuscripts);
-  //     }
-  //   } catch (error) {
-  //     console.error('Error fetching manuscripts:', error);
-  //     alert('Error loading manuscripts');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
-  const fetchMyManuscripts = async () => {
-    try {
-      const response = await manuscriptAPI.getMyManuscripts();
-      if (response.success) {
-        const mss = response.data.manuscripts || [];
-        setManuscripts(mss);
-        // Fetch reviews for all manuscripts immediately
-        mss.forEach(m => fetchReviewsForManuscript(m._id));
-      } else {
-        console.error('Error in response:', response.message);
-        // Only show alert for actual errors, not for successful data loading
-        if (response.message) {
-          alert(response.message);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching manuscripts:', error);
-      // Only show alert for actual errors
-      const errorMessage = error.response?.data?.message || error.message || 'Error loading manuscripts';
-      alert(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'submitted': return <Clock className="text-blue-500" size={20} />;
-      case 'under_review': return <FileText className="text-yellow-500" size={20} />;
-      case 'revisions_required': return <AlertCircle className="text-orange-500" size={20} />;
-      case 'accepted': return <CheckCircle className="text-green-500" size={20} />;
-      case 'rejected': return <XCircle className="text-red-500" size={20} />;
-      default: return <FileText className="text-gray-500" size={20} />;
+      case 'submitted': return <Clock className="text-blue-600" size={20} />;
+      case 'under_review': return <Clock className="text-yellow-600" size={20} />;
+      case 'revisions_required': return <AlertCircle className="text-orange-600" size={20} />;
+      case 'accepted': return <CheckCircle className="text-green-600" size={20} />;
+      case 'rejected': return <XCircle className="text-red-600" size={20} />;
+      default: return <FileText className="text-gray-600" size={20} />;
     }
   };
 
@@ -133,6 +107,15 @@ const AuthorDashboard = () => {
       month: 'short',
       year: 'numeric'
     });
+  };
+
+  const handleDownload = async (manuscript) => {
+    try {
+      const filename = `manuscript-${manuscript._id}.pdf`;
+      await downloadManuscriptFile(manuscript._id, filename);
+    } catch (error) {
+      alert('Failed to download manuscript. Please try again.');
+    }
   };
 
   const handleRevisionSubmit = async (manuscriptId: string) => {
@@ -157,7 +140,6 @@ const AuthorDashboard = () => {
       const response = await manuscriptAPI.submitRevision(manuscriptId, formData);
       if (response.success) {
         alert('Revision submitted successfully! Reviewers will review your revised manuscript.');
-        // Reset the form
         setRevisionFile(prev => {
           const newState = { ...prev };
           delete newState[manuscriptId];
@@ -168,36 +150,17 @@ const AuthorDashboard = () => {
           delete newState[manuscriptId];
           return newState;
         });
-        // Refresh manuscripts
         await fetchMyManuscripts();
       } else {
         alert('Failed to submit revision: ' + response.message);
       }
     } catch (error) {
-      console.error('Error submitting revision:', error);
       alert('Error submitting revision. Please try again.');
     } finally {
       setSubmittingRevision(prev => ({
         ...prev,
         [manuscriptId]: false
       }));
-    }
-  };
-
-
-  // const handleDownload = (manuscript) => {
-  //   if (manuscript.manuscriptFile?.url) {
-  //     window.open(manuscript.manuscriptFile.url, '_blank');
-  //   }
-  // };
-
-  const handleDownload = async (manuscript) => {
-    try {
-      const filename = `manuscript-${manuscript._id}.pdf`;
-      await downloadManuscriptFile(manuscript._id, filename);
-    } catch (error) {
-      console.error('Download failed:', error);
-      alert('Failed to download manuscript. Please try again.');
     }
   };
 
@@ -214,11 +177,10 @@ const AuthorDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4">
-        {/* Header */}
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="mb-2 text-3xl font-bold text-gray-900">Author Dashboard</h1>
-          <p className="text-gray-600">Manage your research manuscripts and track their status</p>
+          <h1 className="text-3xl font-bold text-gray-900">Author Dashboard</h1>
+          <p className="mt-2 text-gray-600">Track your manuscript submissions and reviewer feedback</p>
           {orcidId && (
             <p className="mt-1 text-sm text-gray-500">ORCID iD: <span className="font-medium text-gray-800">{orcidId}</span></p>
           )}
@@ -227,7 +189,6 @@ const AuthorDashboard = () => {
           )}
         </div>
 
-        {/* Action Buttons */}
         <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
           <Link 
             to="/submit-manuscript" 
@@ -252,7 +213,6 @@ const AuthorDashboard = () => {
           </Link>
         </div>
 
-        {/* Recent Manuscripts */}
         <div className="rounded-lg bg-white shadow">
           <div className="border-b border-gray-200 px-6 py-4">
             <h2 className="text-xl font-semibold text-gray-900">Recent Submissions</h2>
@@ -309,7 +269,6 @@ const AuthorDashboard = () => {
                       </div>
                     </div>
                     
-                    {/* Reviewer Comments Section */}
                     {reviews[manuscript._id] && reviews[manuscript._id].length > 0 && (
                       <div className="border-t border-gray-200">
                         <button
@@ -350,7 +309,6 @@ const AuthorDashboard = () => {
                                   </span>
                                 </div>
                                 
-                                {/* Average Score */}
                                 {review.scores && (
                                   <div className="mb-2 text-xs font-medium text-gray-700">
                                     Average Score: {(
@@ -361,7 +319,6 @@ const AuthorDashboard = () => {
                                   </div>
                                 )}
                                 
-                                {/* Comments to Author */}
                                 {review.commentsToAuthor && (
                                   <div className="mt-3 rounded bg-white p-3">
                                     <p className="text-xs font-semibold text-gray-700 uppercase">Reviewer Comments:</p>
@@ -377,7 +334,6 @@ const AuthorDashboard = () => {
                       </div>
                     )}
 
-                    {/* Revision Submission Section - Show if status is revisions_required */}
                     {manuscript.status === 'revisions_required' && (
                       <div className="border-t border-orange-200 bg-orange-50 p-4">
                         <div className="mb-4">
@@ -388,7 +344,6 @@ const AuthorDashboard = () => {
                         </div>
 
                         <div className="space-y-3">
-                          {/* File Input */}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               Upload Revised Manuscript *
@@ -413,7 +368,6 @@ const AuthorDashboard = () => {
                             )}
                           </div>
 
-                          {/* Notes Input */}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               Revision Notes (Optional)
@@ -432,7 +386,6 @@ const AuthorDashboard = () => {
                             />
                           </div>
 
-                          {/* Submit Button */}
                           <button
                             onClick={() => handleRevisionSubmit(manuscript._id)}
                             disabled={!revisionFile[manuscript._id] || submittingRevision[manuscript._id]}

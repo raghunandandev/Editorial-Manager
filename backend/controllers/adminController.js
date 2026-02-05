@@ -1,4 +1,3 @@
-// controllers/adminController.js
 const User = require('../models/User');
 const Manuscript = require('../models/Manuscript');
 const Assignment = require('../models/Assignment');
@@ -65,8 +64,6 @@ exports.getDashboardStats = async (_req, res) => {
 
 exports.getPendingManuscripts = async (_req, res) => {
   try {
-    // Include manuscripts that are submitted, under review, or require revisions,
-    // and also include ones flagged in the new workflowReview states
     const manuscripts = await Manuscript.find({
       $or: [
         { status: { $in: ['submitted', 'under_review', 'revisions_required'] } },
@@ -90,7 +87,6 @@ exports.getPendingManuscripts = async (_req, res) => {
           submittedOn: m.submissionDate,
           status: m.status,
           currentRound: m.currentRound || 1,
-          // expose revision summary so admin can quickly see if revisions exist
           revisions: (m.revisions || []).map(r => ({ round: r.round, submittedDate: r.submittedDate }))
         }))
       }
@@ -135,7 +131,6 @@ exports.assignReviewer = async (req, res) => {
       });
     }
 
-    // Check if already assigned
     const existingAssignment = await Assignment.findOne({
       manuscript: manuscriptId,
       reviewer: reviewerId,
@@ -160,12 +155,10 @@ exports.assignReviewer = async (req, res) => {
 
     await assignment.save();
 
-    // Update manuscript legacy status and workflow status
     manuscript.status = 'under_review';
     manuscript.workflowStatus = 'UNDER_REVIEW';
     await manuscript.save();
 
-    // Notify reviewer
     await emailService.notifyReviewAssignment(reviewer.email, manuscript, assignment);
 
     res.status(201).json({
@@ -194,7 +187,6 @@ exports.updateUserRoles = async (req, res) => {
       });
     }
 
-    // Update roles
     user.roles = { ...user.roles, ...roles };
     await user.save();
 
@@ -250,23 +242,16 @@ exports.setManuscriptStatus = async (req, res) => {
   }
 };
 
-/**
- * @desc    Editor-in-Chief makes final decision after reviews
- * @route   POST /api/admin/manuscripts/:id/editor-decision
- * @access  Private (Editor-in-Chief)
- */
 exports.editorDecision = async (req, res) => {
   try {
-    const { decision } = req.body; // expected 'accept' or 'reject'
+    const { decision } = req.body;
     const manuscript = await Manuscript.findById(req.params.id);
 
     if (!manuscript) return res.status(404).json({ success: false, message: 'Manuscript not found' });
 
     if (decision === 'accept') {
       manuscript.status = 'accepted';
-      // Do not publish yet; move to editor accepted workflow
       manuscript.workflowStatus = 'EDITOR_ACCEPTED';
-      // Create a payment placeholder and notify author to pay
       try {
         const pages = manuscript.manuscriptFile?.pages || 1;
         const baseAmount = 5;
@@ -291,7 +276,6 @@ exports.editorDecision = async (req, res) => {
         manuscript.workflowStatus = 'PAYMENT_PENDING';
         await manuscript.save();
 
-        // Notify author to complete payment
         const author = await User.findById(manuscript.correspondingAuthor);
         if (author) {
           await emailService.notifyAuthorPaymentRequest(author.email, manuscript, payment);
@@ -315,11 +299,6 @@ exports.editorDecision = async (req, res) => {
   }
 };
 
-/**
- * @desc    Request payment from author after editor acceptance
- * @route   POST /api/admin/manuscripts/:id/request-payment
- * @access  Private (Editor-in-Chief)
- */
 exports.requestPayment = async (req, res) => {
   try {
     const manuscript = await Manuscript.findById(req.params.id).populate('correspondingAuthor');
@@ -329,10 +308,8 @@ exports.requestPayment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Manuscript is not ready for payment request' });
     }
 
-    // Ensure publicationCharges are set with valid amount
     if (!manuscript.publicationCharges || typeof manuscript.publicationCharges.totalAmount !== 'number' || manuscript.publicationCharges.totalAmount <= 0) {
       console.error('Invalid publicationCharges for manuscript:', req.params.id, manuscript.publicationCharges);
-      // Set default charges if missing (default: 5 for up to 6 pages)
       manuscript.publicationCharges = {
         baseAmount: 5,
         extraPages: 0,
@@ -341,7 +318,6 @@ exports.requestPayment = async (req, res) => {
       await manuscript.save();
     }
 
-    // Create a payment placeholder (client will perform payment via gateway)
     const payment = {
       paymentId: `pay_${Date.now()}`,
       amount: manuscript.publicationCharges.totalAmount,
@@ -355,7 +331,6 @@ exports.requestPayment = async (req, res) => {
     manuscript.workflowStatus = 'PAYMENT_PENDING';
     await manuscript.save();
 
-    // Notify author to complete payment
     try {
       await emailService.notifyAuthorPaymentRequest(manuscript.correspondingAuthor.email, manuscript, payment);
     } catch (e) {
@@ -369,14 +344,8 @@ exports.requestPayment = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get all payments across manuscripts (for Editor-in-Chief)
- * @route   GET /api/admin/payments
- * @access  Private (Editor-in-Chief)
- */
 exports.getPayments = async (req, res) => {
   try {
-    // Find manuscripts that have payments
     const manuscripts = await Manuscript.find({ 'payments.0': { $exists: true } })
       .select('title correspondingAuthor payments')
       .populate('correspondingAuthor', 'firstName lastName email');
@@ -398,7 +367,6 @@ exports.getPayments = async (req, res) => {
       });
     });
 
-    // Sort by newest
     payments.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     res.json({ success: true, data: { payments, count: payments.length } });

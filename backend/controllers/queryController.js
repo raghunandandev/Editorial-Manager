@@ -22,16 +22,15 @@ exports.submitQuery = async (req, res) => {
 
     if (req.user) payload.user = req.user._id;
 
-    const q = new Query(payload);
-    await q.save();
+    const query = new Query(payload);
+    await query.save();
 
-    // Find an Editor-in-Chief to notify
     const editor = await User.findOne({ 'roles.editorInChief': true });
-    if (editor && editor.email) {
-      await emailService.notifyNewQuery(editor.email, q);
+    if (editor?.email) {
+      await emailService.notifyNewQuery(editor.email, query);
     }
 
-    res.status(201).json({ success: true, message: 'Query submitted', data: { query: q } });
+    res.status(201).json({ success: true, message: 'Query submitted', data: { query } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error submitting query', error: error.message });
   }
@@ -55,20 +54,19 @@ exports.replyToQuery = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Reply is required' });
     }
 
-    const q = await Query.findById(id);
-    if (!q) return res.status(404).json({ success: false, message: 'Query not found' });
+    const query = await Query.findById(id);
+    if (!query) return res.status(404).json({ success: false, message: 'Query not found' });
 
-    q.reply = reply.trim();
-    q.status = 'answered';
-    q.repliedBy = req.user ? req.user._id : undefined;
-    q.repliedAt = new Date();
+    query.reply = reply.trim();
+    query.status = 'answered';
+    query.repliedBy = req.user ? req.user._id : undefined;
+    query.repliedAt = new Date();
 
-    await q.save();
+    await query.save();
 
-    // Send email back to user
-    await emailService.sendQueryReply(q.email, q.reply, q);
+    await emailService.sendQueryReply(query.email, query.reply, query);
 
-    res.json({ success: true, message: 'Reply sent', data: { query: q } });
+    res.json({ success: true, message: 'Reply sent', data: { query } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error replying to query', error: error.message });
   }

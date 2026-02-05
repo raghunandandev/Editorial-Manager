@@ -1,4 +1,3 @@
-// controllers/reviewController.js
 const Review = require('../models/Review');
 const Manuscript = require('../models/Manuscript');
 const Assignment = require('../models/Assignment');
@@ -17,7 +16,6 @@ exports.submitReview = async (req, res) => {
       recommendation
     } = req.body;
 
-    // Check if assignment exists and reviewer is assigned (pending or accepted)
     const assignment = await Assignment.findOne({
       manuscript: manuscriptId,
       reviewer: req.user.id,
@@ -31,13 +29,11 @@ exports.submitReview = async (req, res) => {
       });
     }
 
-    // Auto-accept if still pending
     if (assignment.status === 'pending') {
       assignment.status = 'accepted';
       await assignment.save();
     }
 
-    // Check if review already exists for this round
     const existingReview = await Review.findOne({
       manuscript: manuscriptId,
       reviewer: req.user.id,
@@ -51,13 +47,11 @@ exports.submitReview = async (req, res) => {
       });
     }
 
-    // Calculate overall score
     const scoreValues = Object.values(scores);
     const overallScore = scoreValues.reduce((sum, score) => sum + score, 0) / scoreValues.length;
 
     let review;
     if (existingReview) {
-      // Update existing review
       review = await Review.findByIdAndUpdate(
         existingReview._id,
         {
@@ -73,7 +67,6 @@ exports.submitReview = async (req, res) => {
         { new: true, runValidators: true }
       );
     } else {
-      // Create new review
       review = new Review({
         manuscript: manuscriptId,
         reviewer: req.user.id,
@@ -90,22 +83,18 @@ exports.submitReview = async (req, res) => {
       await review.save();
     }
 
-    // Update assignment status
     assignment.status = 'completed';
     assignment.review = review._id;
     await assignment.save();
 
-    // Update manuscript status based on reviews
     await updateManuscriptStatus(manuscriptId);
 
-    // Notify editor and author
     await emailService.notifyReviewSubmitted(
       assignment.editor,
       assignment.manuscript,
       review
     );
 
-    // If revisions required, notify author
     if (['minor_revisions', 'major_revisions'].includes(recommendation)) {
       await emailService.notifyAuthorRevision(
         assignment.manuscript.correspondingAuthor,
@@ -129,11 +118,6 @@ exports.submitReview = async (req, res) => {
   }
 };
 
-/**
- * @desc    Accept a review assignment
- * @route   PUT /api/reviews/:assignmentId/accept
- * @access  Private (Reviewer)
- */
 exports.acceptReviewAssignment = async (req, res) => {
   try {
     const { assignmentId } = req.params;
@@ -154,7 +138,6 @@ exports.acceptReviewAssignment = async (req, res) => {
     assignment.status = 'accepted';
     await assignment.save();
 
-    // Mark manuscript workflow as review in progress
     if (assignment.manuscript) {
       const manuscript = await Manuscript.findById(assignment.manuscript._id);
       if (manuscript) {
@@ -163,7 +146,6 @@ exports.acceptReviewAssignment = async (req, res) => {
       }
     }
 
-    // Notify editor
     await emailService.notifyReviewAssignmentAccepted(
       assignment.editor,
       assignment.manuscript,
@@ -185,11 +167,6 @@ exports.acceptReviewAssignment = async (req, res) => {
   }
 };
 
-/**
- * @desc    Decline a review assignment
- * @route   PUT /api/reviews/:assignmentId/decline
- * @access  Private (Reviewer)
- */
 exports.declineReviewAssignment = async (req, res) => {
   try {
     const { assignmentId } = req.params;
@@ -211,7 +188,6 @@ exports.declineReviewAssignment = async (req, res) => {
     assignment.status = 'declined';
     await assignment.save();
 
-    // Notify editor
     await emailService.notifyReviewAssignmentDeclined(
       assignment.editor,
       assignment.manuscript,
@@ -234,21 +210,15 @@ exports.declineReviewAssignment = async (req, res) => {
   }
 };
 
-/**
- * @desc    Update a review (before submission)
- * @route   PUT /api/reviews/:reviewId
- * @access  Private (Reviewer)
- */
 exports.updateReview = async (req, res) => {
   try {
     const { reviewId } = req.params;
     const updateData = req.body;
 
-    // Check if review exists and belongs to the user
     const review = await Review.findOne({
       _id: reviewId,
       reviewer: req.user.id,
-      status: { $ne: 'submitted' } // Can only update if not submitted
+      status: { $ne: 'submitted' }
     });
 
     if (!review) {
@@ -258,13 +228,11 @@ exports.updateReview = async (req, res) => {
       });
     }
 
-    // Recalculate overall score if scores are updated
     if (updateData.scores) {
       const scoreValues = Object.values(updateData.scores);
       updateData.overallScore = scoreValues.reduce((sum, score) => sum + score, 0) / scoreValues.length;
     }
 
-    // Update review
     const updatedReview = await Review.findByIdAndUpdate(
       reviewId,
       { ...updateData, status: 'in_progress' },
@@ -286,11 +254,6 @@ exports.updateReview = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get all review assignments for the logged-in reviewer
- * @route   GET /api/reviews/my-reviews
- * @access  Private (Reviewer)
- */
 exports.getMyReviews = async (req, res) => {
   try {
     const { status, page = 1, limit = 100 } = req.query;
@@ -303,7 +266,6 @@ exports.getMyReviews = async (req, res) => {
     const assignments = await Assignment.find(query)
       .populate({
         path: 'manuscript',
-        // include currentRound and revisions so reviewer list can show revised status
         select: 'title abstract domain status submissionDate manuscriptFile currentRound revisions',
         populate: {
           path: 'correspondingAuthor',
@@ -318,8 +280,6 @@ exports.getMyReviews = async (req, res) => {
 
     const total = await Assignment.countDocuments(query);
 
-    // De-duplicate by manuscript + round to avoid showing multiple assignment documents
-    // for the same reviewer/manuscript/round (keep the most recently created)
     const deduped = [];
     const seen = new Map();
     for (const a of assignments) {
@@ -331,9 +291,7 @@ exports.getMyReviews = async (req, res) => {
         seen.set(key, a);
         deduped.push(a);
       } else {
-        // prefer assignment with later createdAt
         if (a.createdAt && existing.createdAt && a.createdAt > existing.createdAt) {
-          // replace in deduped array
           const idx = deduped.indexOf(existing);
           if (idx !== -1) deduped[idx] = a;
           seen.set(key, a);
@@ -362,16 +320,10 @@ exports.getMyReviews = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get reviewer statistics
- * @route   GET /api/reviews/statistics
- * @access  Private (Reviewer)
- */
 exports.getReviewerStatistics = async (req, res) => {
   try {
     const reviewerId = req.user.id;
 
-    // Get all completed reviews with their recommendations
     const completedReviews = await Review.find({
       reviewer: reviewerId,
       status: 'submitted'
@@ -380,7 +332,6 @@ exports.getReviewerStatistics = async (req, res) => {
       select: 'domain'
     });
 
-    // Get assignments count by status
     const [totalAssignments, pendingAssignments, acceptedAssignments, completedAssignments] = await Promise.all([
       Assignment.countDocuments({ reviewer: reviewerId }),
       Assignment.countDocuments({ reviewer: reviewerId, status: 'pending' }),
@@ -388,18 +339,15 @@ exports.getReviewerStatistics = async (req, res) => {
       Assignment.countDocuments({ reviewer: reviewerId, status: 'completed' })
     ]);
 
-    // Calculate recommendation counts
     const minorRevisions = completedReviews.filter(r => r.recommendation === 'minor_revisions').length;
     const majorRevisions = completedReviews.filter(r => r.recommendation === 'major_revisions').length;
     const acceptedManuscripts = completedReviews.filter(r => r.recommendation === 'accept').length;
 
-    // Calculate average score
     const averageScoreResult = await Review.aggregate([
       { $match: { reviewer: reviewerId, status: 'submitted' } },
       { $group: { _id: null, avgScore: { $avg: '$overallScore' } } }
     ]);
 
-    // Calculate fastest review (minimum response time)
     const assignmentsWithReviews = await Assignment.find({
       reviewer: reviewerId,
       status: 'completed'
@@ -411,12 +359,11 @@ exports.getReviewerStatistics = async (req, res) => {
         .filter(a => a.review && a.review.submittedDate)
         .map(a => {
           const responseTime = a.review.submittedDate - a.createdAt;
-          return responseTime / (1000 * 60 * 60 * 24); // Convert to days
+          return responseTime / (1000 * 60 * 60 * 24);
         });
       fastestReviewDays = responseTimes.length > 0 ? Math.min(...responseTimes) : 0;
     }
 
-    // Calculate top domain reviewed
     const domainCounts = {};
     completedReviews.forEach(review => {
       if (review.manuscript && review.manuscript.domain) {
@@ -456,11 +403,6 @@ exports.getReviewerStatistics = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get specific review details
- * @route   GET /api/reviews/:reviewId
- * @access  Private (Reviewer, Editor, EditorInChief)
- */
 exports.getReviewDetails = async (req, res) => {
   try {
     const { reviewId } = req.params;
@@ -479,7 +421,6 @@ exports.getReviewDetails = async (req, res) => {
       });
     }
 
-    // Check access permissions
     const isOwner = review.reviewer._id.toString() === req.user.id;
     const isEditor = req.user.roles.editor || req.user.roles.editorInChief;
 
@@ -490,7 +431,6 @@ exports.getReviewDetails = async (req, res) => {
       });
     }
 
-    // Hide confidential comments from non-editors
     if (!isEditor) {
       review.confidentialComments = undefined;
     }
@@ -509,17 +449,11 @@ exports.getReviewDetails = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get manuscript details for review
- * @route   GET /api/reviews/manuscript/:manuscriptId/for-review
- * @access  Private (Reviewer)
- */
 exports.getManuscriptForReview = async (req, res) => {
   try {
     const { manuscriptId } = req.params;
     const reviewerId = req.user.id;
 
-    // Check if reviewer is assigned to this manuscript
     const assignment = await Assignment.findOne({
       manuscript: manuscriptId,
       reviewer: reviewerId,
@@ -533,7 +467,6 @@ exports.getManuscriptForReview = async (req, res) => {
       });
     }
 
-    // Get manuscript with full details
     const manuscript = await Manuscript.findById(manuscriptId)
       .populate('correspondingAuthor', 'firstName lastName email profile.affiliation')
       .populate('authors.user', 'firstName lastName email profile.affiliation');
@@ -545,14 +478,12 @@ exports.getManuscriptForReview = async (req, res) => {
       });
     }
 
-    // Get existing review if any
     const existingReview = await Review.findOne({
       manuscript: manuscriptId,
       reviewer: reviewerId,
       round: manuscript.currentRound
     });
 
-    // Build response with revision info
     const response = {
       manuscript: {
         ...manuscript.toObject(),
@@ -578,16 +509,10 @@ exports.getManuscriptForReview = async (req, res) => {
   }
 };
 
-/**
- * @desc    Get all reviews for a manuscript
- * @route   GET /api/reviews/manuscript/:manuscriptId
- * @access  Private (Editor, EditorInChief)
- */
 exports.getManuscriptReviews = async (req, res) => {
   try {
     const { manuscriptId } = req.params;
 
-    // Verify user is either editor/admin or the author of the manuscript
     const manuscript = await Manuscript.findById(manuscriptId);
     if (!manuscript) {
       return res.status(404).json({
@@ -610,11 +535,9 @@ exports.getManuscriptReviews = async (req, res) => {
       .populate('reviewer', 'firstName lastName email profile.expertise profile.affiliation')
       .sort({ submittedDate: -1 });
 
-    // If requester is the corresponding author (not an editor), hide reviewer identity
     if (isAuthor && !isEditor) {
       reviews.forEach(r => {
         if (r.reviewer && typeof r.reviewer === 'object') {
-          // replace name with anonymous label and remove email
           try {
             r.reviewer.firstName = 'Anonymous';
             r.reviewer.lastName = 'Reviewer';
@@ -626,10 +549,8 @@ exports.getManuscriptReviews = async (req, res) => {
       });
     }
 
-    // Calculate overall decision
     const decision = calculateOverallDecision(reviews);
 
-    // If requester is Editor-in-Chief, hide comments intended for authors
     if (req.user.roles && req.user.roles.editorInChief) {
       reviews.forEach(r => {
         try {
@@ -659,7 +580,6 @@ exports.getManuscriptReviews = async (req, res) => {
   }
 };
 
-// Helper function to update manuscript status based on reviews
 const updateManuscriptStatus = async (manuscriptId) => {
   const reviews = await Review.find({
     manuscript: manuscriptId,
@@ -669,12 +589,11 @@ const updateManuscriptStatus = async (manuscriptId) => {
 
   const manuscript = await Manuscript.findById(manuscriptId);
   
-  if (reviews.length >= 2) { // Assuming minimum 2 reviews required
+  if (reviews.length >= 2) {
     const recommendations = reviews.map(r => r.recommendation);
     
     if (recommendations.every(rec => rec === 'accept')) {
       manuscript.status = 'accepted';
-      // mark workflow that reviewers recommended acceptance
       manuscript.workflowStatus = 'REVIEW_ACCEPTED';
     } else if (recommendations.some(rec => rec === 'reject')) {
       manuscript.status = 'rejected';
@@ -686,7 +605,6 @@ const updateManuscriptStatus = async (manuscriptId) => {
   }
 };
 
-// Helper function to calculate average response time
 const calculateAverageResponseTime = async (reviewerId) => {
   const assignments = await Assignment.find({
     reviewer: reviewerId,
@@ -703,10 +621,9 @@ const calculateAverageResponseTime = async (reviewerId) => {
     return total;
   }, 0);
 
-  return totalResponseTime / assignments.length / (1000 * 60 * 60 * 24); // Convert to days
+  return totalResponseTime / assignments.length / (1000 * 60 * 60 * 24);
 };
 
-// Helper function to calculate overall decision
 const calculateOverallDecision = (reviews) => {
   const submittedReviews = reviews.filter(r => r.status === 'submitted');
   
@@ -714,7 +631,6 @@ const calculateOverallDecision = (reviews) => {
   
   const recommendations = submittedReviews.map(r => r.recommendation);
   
-  // Simple majority voting
   const counts = {};
   recommendations.forEach(rec => {
     counts[rec] = (counts[rec] || 0) + 1;

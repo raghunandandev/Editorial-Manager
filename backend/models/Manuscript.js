@@ -1,4 +1,3 @@
-// models/Manuscript.js
 const mongoose = require('mongoose');
 
 const manuscriptSchema = new mongoose.Schema({
@@ -48,12 +47,10 @@ const manuscriptSchema = new mongoose.Schema({
       'accepted',
       'rejected',
       'published',
-      // Selected mirrors accepted for admin wording
       'selected'
     ],
     default: 'submitted'
   },
-  // New workflowStatus (preserves existing lowercase `status` for backwards compatibility)
   workflowStatus: {
     type: String,
     enum: [
@@ -101,9 +98,7 @@ const manuscriptSchema = new mongoose.Schema({
     extraPages: { type: Number, default: 0 },
     totalAmount: { type: Number, default: 0 },
     isPaid: { type: Boolean, default: false }
-  }
-  ,
-  // Store payment attempts/metadata for audits and verification
+  },
   payments: [{
     paymentId: String,
     amount: Number,
@@ -116,7 +111,6 @@ const manuscriptSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index for better query performance
 manuscriptSchema.index({ status: 1, domain: 1 });
 manuscriptSchema.index({ correspondingAuthor: 1 });
 

@@ -1,5 +1,3 @@
-//manuscriptController.js
-
 const Manuscript = require('../models/Manuscript');
 const User = require('../models/User');
 const Assignment = require('../models/Assignment');
@@ -10,7 +8,6 @@ const { validationResult } = require('express-validator');
 const cloudinary = require('../config/cloudinary');
 const path = require('path');
 
-// In backend/controllers/manuscriptController.js
 exports.downloadManuscript = async (req, res) => {
   try {
     const manuscript = await Manuscript.findById(req.params.id);
@@ -22,22 +19,18 @@ exports.downloadManuscript = async (req, res) => {
       });
     }
 
-    // If using Cloudinary
     if (manuscript.manuscriptFile.public_id && !manuscript.manuscriptFile.public_id.startsWith('local_')) {
-      // Generate Cloudinary download URL with attachment flag
       const fileUrl = cloudinary.url(manuscript.manuscriptFile.public_id, {
         resource_type: 'raw',
         flags: 'attachment',
         attachment: true,
         secure: true
       });
-      // Return the URL in JSON for frontend to handle, or redirect
       return res.json({
         success: true,
         downloadUrl: fileUrl
       });
     } else if (manuscript.manuscriptFile.url && manuscript.manuscriptFile.url.includes('cloudinary.com')) {
-      // If URL is already a Cloudinary URL, add download parameters
       try {
         const url = new URL(manuscript.manuscriptFile.url);
         url.searchParams.set('fl', 'attachment');
@@ -46,7 +39,6 @@ exports.downloadManuscript = async (req, res) => {
           downloadUrl: url.toString()
         });
       } catch (e) {
-        // If URL parsing fails, return the URL as-is
         return res.json({
           success: true,
           downloadUrl: manuscript.manuscriptFile.url
@@ -54,12 +46,10 @@ exports.downloadManuscript = async (req, res) => {
       }
     }
 
-    // If using local file system
     const filePath = path.join(__dirname, '..', manuscript.manuscriptFile.url);
     res.download(filePath, `manuscript-${manuscript._id}.pdf`);
     
   } catch (error) {
-    console.error('Download error:', error);
     res.status(500).json({
       success: false,
       message: 'Error downloading manuscript'
@@ -67,12 +57,10 @@ exports.downloadManuscript = async (req, res) => {
   }
 };
 
-// Public download endpoint for accepted manuscripts (no authentication required)
 exports.downloadAcceptedManuscript = async (req, res) => {
   try {
     const manuscript = await Manuscript.findById(req.params.id);
     
-    // Verify manuscript exists, is accepted, and has a file
     if (!manuscript || !manuscript.manuscriptFile?.url) {
       return res.status(404).json({
         success: false,
@@ -80,7 +68,6 @@ exports.downloadAcceptedManuscript = async (req, res) => {
       });
     }
 
-    // Only allow download if published (payment confirmed) - NOT if just accepted
     if (manuscript.status !== 'published' && manuscript.workflowStatus !== 'PUBLISHED') {
       return res.status(403).json({
         success: false,
@@ -88,7 +75,6 @@ exports.downloadAcceptedManuscript = async (req, res) => {
       });
     }
 
-    // If using Cloudinary
     if (manuscript.manuscriptFile.public_id && !manuscript.manuscriptFile.public_id.startsWith('local_')) {
       const fileUrl = cloudinary.url(manuscript.manuscriptFile.public_id, {
         resource_type: 'raw',
@@ -101,7 +87,6 @@ exports.downloadAcceptedManuscript = async (req, res) => {
         downloadUrl: fileUrl
       });
     } else if (manuscript.manuscriptFile.url && manuscript.manuscriptFile.url.includes('cloudinary.com')) {
-      // If URL is already a Cloudinary URL, add download parameters
       try {
         const url = new URL(manuscript.manuscriptFile.url);
         url.searchParams.set('fl', 'attachment');
@@ -117,12 +102,10 @@ exports.downloadAcceptedManuscript = async (req, res) => {
       }
     }
 
-    // If using local file system
     const filePath = path.join(__dirname, '..', manuscript.manuscriptFile.url);
     res.download(filePath, `manuscript-${manuscript._id}.pdf`);
     
   } catch (error) {
-    console.error('Download error:', error);
     res.status(500).json({
       success: false,
       message: 'Error downloading manuscript'
@@ -152,38 +135,7 @@ exports.submitManuscript = async (req, res) => {
     
     let manuscriptFileData;
     
-    // Handle file upload - try Cloudinary first, then fallback to local storage
-    if (req.file.buffer) {
-      // File is in memory (fallback mode)
-      try {
-        const cloudinaryResult = await uploadToCloudinary(req.file.buffer);
-        console.log(cloudinaryResult);
-        manuscriptFileData = {
-          public_id: cloudinaryResult.public_id,
-          url: cloudinaryResult.secure_url,
-          pages: 1, // You'll need to implement PDF page counting
-          size: req.file.size
-        };
-      } catch (cloudinaryError) {
-        console.warn('Cloudinary upload failed:', cloudinaryError.message);
-        // Fallback to storing file info without Cloudinary
-        manuscriptFileData = {
-          public_id: `local_${Date.now()}`,
-          url: `/uploads/${req.file.filename}`,
-          pages: 1,
-          size: req.file.size
-        };
-      }
-    } else if (req.file.path) {
-      // File was uploaded via Cloudinary storage (multer-storage-cloudinary)
-      manuscriptFileData = {
-        public_id: req.file.filename || req.file.public_id,
-        url: req.file.path || req.file.secure_url,
-        pages: 1,
-        size: req.file.size
-      };
-    } else {
-      // Fallback: try to upload buffer if available
+    if (req.file) {
       if (req.file.buffer) {
         try {
           const cloudinaryResult = await uploadToCloudinary(req.file.buffer);
@@ -194,12 +146,20 @@ exports.submitManuscript = async (req, res) => {
             size: req.file.size
           };
         } catch (cloudinaryError) {
-          console.warn('Cloudinary upload failed:', cloudinaryError.message);
-          return res.status(500).json({
-            success: false,
-            message: 'File upload failed. Please try again.'
-          });
+          manuscriptFileData = {
+            public_id: `local_${Date.now()}`,
+            url: `/uploads/${req.file.filename}`,
+            pages: 1,
+            size: req.file.size
+          };
         }
+      } else if (req.file.path) {
+        manuscriptFileData = {
+          public_id: req.file.filename || req.file.public_id,
+          url: req.file.path || req.file.secure_url,
+          pages: 1,
+          size: req.file.size
+        };
       } else {
         return res.status(400).json({
           success: false,
@@ -208,9 +168,7 @@ exports.submitManuscript = async (req, res) => {
       }
     }
 
-    // Calculate pages and charges
     const pages = manuscriptFileData.pages;
-    // Minimum base charge: 5 for all manuscripts (regardless of page count)
     const baseAmount = 5;
     const extraPages = pages > 6 ? pages - 6 : 0;
     const totalAmount = baseAmount + (extraPages * 10);
@@ -234,20 +192,16 @@ exports.submitManuscript = async (req, res) => {
       }
     });
 
-    // Set workflowStatus explicitly for the new workflow (preserve legacy `status` value)
     manuscript.workflowStatus = 'SUBMITTED';
 
     await manuscript.save();
 
-    // Notify editor in chief
     try {
       const editorInChief = await User.findOne({ 'roles.editorInChief': true });
       if (editorInChief) {
         await emailService.notifyNewSubmission(editorInChief.email, manuscript);
       }
     } catch (emailError) {
-      console.error('Email notification failed:', emailError);
-      // Continue even if email fails
     }
 
     res.status(201).json({
@@ -256,8 +210,6 @@ exports.submitManuscript = async (req, res) => {
       data: { manuscript }
     });
   } catch (error) {
-    console.error('Submit manuscript error:', error);
-    
     res.status(500).json({
       success: false,
       message: 'Error submitting manuscript',
@@ -301,7 +253,6 @@ exports.getManuscript = async (req, res) => {
       });
     }
 
-    // Check if user has access to this manuscript
     const isAuthor = manuscript.authors.some(author => 
       author.user._id.toString() === req.user.id
     );
@@ -314,17 +265,14 @@ exports.getManuscript = async (req, res) => {
       });
     }
 
-    // If the requester is an editor/admin include review history and revision details
     if (isEditor) {
       try {
         const reviews = await Review.find({ manuscript: manuscript._id })
           .populate('reviewer', 'firstName lastName email')
           .sort({ submittedDate: 1 });
 
-        // send manuscript and reviews together for admin/editor UI
         return res.json({ success: true, data: { manuscript, reviews } });
       } catch (e) {
-        console.warn('Failed to load reviews for manuscript:', e.message);
         return res.json({ success: true, data: { manuscript } });
       }
     }
@@ -342,12 +290,10 @@ exports.getManuscript = async (req, res) => {
   }
 };
 
-// Public endpoint to fetch all accepted manuscripts (no authentication required)
 exports.getAcceptedManuscripts = async (req, res) => {
   try {
     const { search } = req.query;
     
-    // Only return PUBLISHED manuscripts (payment confirmed), NOT just accepted
     const filter = {
       $or: [
         { status: 'published' },
@@ -355,7 +301,6 @@ exports.getAcceptedManuscripts = async (req, res) => {
       ]
     };
 
-    // Add search filter if provided (case-insensitive)
     if (search && search.trim()) {
       filter.title = { $regex: search.trim(), $options: 'i' };
     }
@@ -374,7 +319,6 @@ exports.getAcceptedManuscripts = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching accepted manuscripts:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching manuscripts',
@@ -383,7 +327,6 @@ exports.getAcceptedManuscripts = async (req, res) => {
   }
 };
 
-// Public endpoint to fetch all published manuscripts (no authentication required)
 exports.getPublishedManuscripts = async (req, res) => {
   try {
     const { search } = req.query;
@@ -410,12 +353,10 @@ exports.getPublishedManuscripts = async (req, res) => {
       data: { manuscripts, count: manuscripts.length }
     });
   } catch (error) {
-    console.error('Error fetching published manuscripts:', error);
     res.status(500).json({ success: false, message: 'Error fetching manuscripts', error: error.message });
   }
 };
 
-// Public endpoint to download a published manuscript
 exports.downloadPublishedManuscript = async (req, res) => {
   try {
     const manuscript = await Manuscript.findById(req.params.id);
@@ -424,7 +365,6 @@ exports.downloadPublishedManuscript = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Manuscript not found or file is missing' });
     }
 
-    // Allow only published manuscripts for public download
     if (!(manuscript.workflowStatus === 'PUBLISHED' || manuscript.status === 'published')) {
       return res.status(403).json({ success: false, message: 'This manuscript is not publicly available' });
     }
@@ -450,12 +390,10 @@ exports.downloadPublishedManuscript = async (req, res) => {
     const filePath = path.join(__dirname, '..', manuscript.manuscriptFile.url);
     res.download(filePath, `manuscript-${manuscript._id}.pdf`);
   } catch (error) {
-    console.error('Download published error:', error);
     res.status(500).json({ success: false, message: 'Error downloading manuscript' });
   }
 };
 
-// Submit revision for a manuscript that requires revisions
 exports.submitRevision = async (req, res) => {
   try {
     const { manuscriptId } = req.params;
@@ -468,7 +406,6 @@ exports.submitRevision = async (req, res) => {
       });
     }
 
-    // Find manuscript
     const manuscript = await Manuscript.findById(manuscriptId);
     if (!manuscript) {
       return res.status(404).json({
@@ -477,7 +414,6 @@ exports.submitRevision = async (req, res) => {
       });
     }
 
-    // Check if user is the corresponding author
     if (manuscript.correspondingAuthor.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
@@ -485,7 +421,6 @@ exports.submitRevision = async (req, res) => {
       });
     }
 
-    // Check if manuscript status requires revisions
     if (manuscript.status !== 'revisions_required') {
       return res.status(400).json({
         success: false,
@@ -493,7 +428,6 @@ exports.submitRevision = async (req, res) => {
       });
     }
 
-    // Upload revised file
     let manuscriptFileData;
     try {
       const cloudinaryResult = await uploadToCloudinary(req.file.buffer);
@@ -504,7 +438,6 @@ exports.submitRevision = async (req, res) => {
         size: req.file.size
       };
     } catch (cloudinaryError) {
-      console.warn('Cloudinary upload failed:', cloudinaryError.message);
       manuscriptFileData = {
         public_id: `local_${Date.now()}`,
         url: `/uploads/${req.file.filename}`,
@@ -513,15 +446,12 @@ exports.submitRevision = async (req, res) => {
       };
     }
 
-    // Increment round
     manuscript.currentRound = (manuscript.currentRound || 1) + 1;
     
-    // Update manuscript file and status
     manuscript.manuscriptFile = manuscriptFileData;
     manuscript.status = 'under_review';
     manuscript.workflowStatus = 'REVIEW_IN_PROGRESS';
     
-    // Store revision info
     if (!manuscript.revisions) {
       manuscript.revisions = [];
     }
@@ -534,7 +464,6 @@ exports.submitRevision = async (req, res) => {
 
     await manuscript.save();
 
-    // Notify assigned editors about the revised manuscript
     if (manuscript.assignedEditors && manuscript.assignedEditors.length > 0) {
       try {
         const editorIds = manuscript.assignedEditors.map(e => e.editor);
@@ -543,20 +472,16 @@ exports.submitRevision = async (req, res) => {
           await emailService.notifyRevisionSubmitted(editor.email, manuscript);
         }
       } catch (emailError) {
-        console.error('Email notification failed:', emailError);
       }
     }
 
-    // Re-create review assignments for previous reviewers so they can re-review the revised manuscript
-    // Deduplicate reviewers and avoid creating assignments that already exist for this round
     let createdAssignments = [];
     try {
       const prevAssignments = await Assignment.find({ manuscript: manuscript._id, status: 'completed' });
       if (prevAssignments && prevAssignments.length > 0) {
         const uniqueReviewerIds = [...new Set(prevAssignments.map(pa => pa.reviewer.toString()))];
-        const dueOffsetMs = 14 * 24 * 60 * 60 * 1000; // 14 days
+        const dueOffsetMs = 14 * 24 * 60 * 60 * 1000;
         for (const reviewerId of uniqueReviewerIds) {
-          // skip if an assignment for this manuscript/reviewer/round already exists
           const existing = await Assignment.findOne({
             manuscript: manuscript._id,
             reviewer: reviewerId,
@@ -565,7 +490,6 @@ exports.submitRevision = async (req, res) => {
           });
           if (existing) continue;
 
-          // find an editor to attribute (use first completed assignment's editor if available)
           const pa = prevAssignments.find(p => p.reviewer.toString() === reviewerId.toString());
           const editorForAssignment = pa ? pa.editor : (manuscript.assignedEditors && manuscript.assignedEditors[0] && manuscript.assignedEditors[0].editor) || null;
 
@@ -581,22 +505,18 @@ exports.submitRevision = async (req, res) => {
           await newAssignment.save();
           createdAssignments.push(newAssignment._id);
 
-          // small log to help debugging
-          console.log('Created new revision assignment', { manuscript: manuscript._id.toString(), reviewer: reviewerId.toString(), assignment: newAssignment._id.toString(), round: manuscript.currentRound });
+          
 
-          // Notify the reviewer by email if available
           try {
             const reviewerUser = await User.findById(reviewerId);
             if (reviewerUser && reviewerUser.email) {
               await emailService.notifyReviewAssignment(reviewerUser.email, manuscript, newAssignment);
             }
           } catch (notifyErr) {
-            console.error('Failed to notify reviewer about revision assignment:', notifyErr);
           }
         }
       }
     } catch (assignErr) {
-      console.error('Error recreating assignments for revised manuscript:', assignErr);
     }
 
     res.json({
@@ -609,7 +529,6 @@ exports.submitRevision = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Submit revision error:', error);
     res.status(500).json({
       success: false,
       message: 'Error submitting revision',

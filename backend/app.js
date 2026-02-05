@@ -1,4 +1,3 @@
-// app.js
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -7,7 +6,6 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const config = require('./config/env');
 
-// Route imports
 const authRoutes = require('./routes/auth');
 const manuscriptRoutes = require('./routes/manuscript');
 const reviewRoutes = require('./routes/review');
@@ -19,53 +17,43 @@ const paymentRoutes = require('./routes/payment');
 
 const app = express();
 
-// Security middleware
 app.use(helmet());
 app.use(compression());
 
-// Rate limiting
 const limiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 1 * 60 * 1000,
+  max: 100
 });
 app.use(limiter);
 
-// CORS - align with frontend dev server (Vite default is 5173)
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
 
-// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Database connection
 mongoose.connect(config.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 })
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
+.then(() => {})
+.catch(err => {});
 
-// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/manuscripts', manuscriptRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/queries', queryRoutes);
 app.use('/api/payments', paymentRoutes);
-// Public editorial board endpoint
 app.use('/api', editorialRoutes);
-// Editor profile endpoint
 app.use('/api', editorProfileRoutes);
 
-// ORCID callback alias: accept callbacks aimed at /api/orcid/callback
-// (some external setups / ngrok may use this path; keep for compatibility)
 const authController = require('./controllers/authController');
 app.get('/api/orcid/callback', authController.orcidCallback);
 app.get('/api/orcid', authController.orcidRedirect);
-// Health check
+
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
@@ -74,10 +62,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
@@ -100,7 +85,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,

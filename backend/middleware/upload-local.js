@@ -1,10 +1,8 @@
-// middleware/upload-local.js (Alternative for development)
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const config = require('../config/env');
 
-// Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });

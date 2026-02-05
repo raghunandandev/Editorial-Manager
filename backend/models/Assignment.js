@@ -1,4 +1,3 @@
-// models/Assignment.js
 const mongoose = require('mongoose');
 
 const assignmentSchema = new mongoose.Schema({
@@ -26,7 +25,6 @@ const assignmentSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
-  // Track which review round this assignment belongs to
   round: {
     type: Number,
     default: 1

@@ -1,4 +1,3 @@
-// services/emailService.js
 const nodemailer = require('nodemailer');
 const config = require('../config/env');
 const User = require('../models/User');
@@ -119,7 +118,6 @@ exports.notifyReviewSubmitted = async (editorId, manuscript, review) => {
   await transporter.sendMail(mailOptions);
 };
 
-// Notify Editor-in-Chief about a new help/query submission
 exports.notifyNewQuery = async (editorEmail, query) => {
   const mailOptions = {
     from: config.FROM_EMAIL,
@@ -139,7 +137,6 @@ exports.notifyNewQuery = async (editorEmail, query) => {
   await transporter.sendMail(mailOptions);
 };
 
-// Send reply from Editor to the user who submitted the query
 exports.sendQueryReply = async (userEmail, reply, originalQuery) => {
   const mailOptions = {
     from: config.FROM_EMAIL,

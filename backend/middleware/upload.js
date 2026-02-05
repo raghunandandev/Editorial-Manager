@@ -1,9 +1,6 @@
-// middleware/upload.js
 const multer = require('multer');
 const config = require('../config/env');
 
-// Use memory storage for file uploads (stores in request memory, not persisted to disk)
-// This prevents multer-storage-cloudinary crashes while allowing file uploads to work
 const memoryStorage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
@@ -22,7 +19,6 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
-// Manual upload to Cloudinary function (if needed later for direct uploads)
 const cloudinary = require('../config/cloudinary');
 const uploadToCloudinary = (buffer) => {
   return new Promise((resolve, reject) => {

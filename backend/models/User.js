@@ -1,4 +1,3 @@
-// models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -34,7 +33,6 @@ const userSchema = new mongoose.Schema({
   providerId: {
     type: String
   },
-  // ORCID fields (optional)
   orcidId: {
     type: String
   },
@@ -42,7 +40,6 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  // Whether the user's email has been verified (e.g., via Google OAuth)
   emailVerified: {
     type: Boolean,
     default: false

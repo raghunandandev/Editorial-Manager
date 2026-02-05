@@ -1,4 +1,3 @@
-// config/env.js
 require('dotenv').config();
 
 const config = {
@@ -21,7 +20,6 @@ const config = {
   // Google OAuth
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-  // Frontend URL to redirect after OAuth (set in env)
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
   
   // ORCID OAuth
@@ -42,10 +40,8 @@ const config = {
   ALLOWED_FILE_TYPES: ['application/pdf']
 };
 
-// Server root (used to construct OAuth redirect URIs)
 config.SERVER_ROOT_URL = process.env.SERVER_ROOT_URL || `http://localhost:${config.PORT}`;
 
-// Validate required environment variables
 const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
 if (config.NODE_ENV === 'production') {
   requiredEnvVars.push('CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET');

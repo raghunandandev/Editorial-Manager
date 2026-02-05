@@ -1,4 +1,3 @@
-// models/AuthProvider.js
 const mongoose = require('mongoose');
 
 const authProviderSchema = new mongoose.Schema({
@@ -12,4 +11,4 @@ const authProviderSchema = new mongoose.Schema({
 authProviderSchema.index({ provider: 1, providerId: 1 }, { unique: true });
 
 module.exports = mongoose.model('AuthProvider', authProviderSchema);
- 
+  

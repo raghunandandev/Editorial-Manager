@@ -1,4 +1,3 @@
-// Seed script: create an Editor-in-Chief user if not exists
 const mongoose = require('mongoose');
 const config = require('../config/env');
 const User = require('../models/User');
@@ -18,7 +17,6 @@ async function run() {
     await user.save();
     console.log('Created Editor-in-Chief:', email);
   } else {
-    // ensure role is set
     user.roles = { ...user.roles, editorInChief: true, editor: true };
     await user.save();
     console.log('Updated existing user as Editor-in-Chief:', email);
