@@ -70,7 +70,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      <div className="flex flex-col gap-8 lg:flex-row">
+      {/* <div className="flex flex-col gap-8 lg:flex-row">
         <div className="flex w-full flex-col gap-10 lg:w-3/4">
           <Timeline />
           <EditorInChief />
@@ -82,7 +82,7 @@ const HomePage = () => {
         </div>
 
         <Sidebar />
-      </div>
+      </div> */}
 
       <FeedbackButton />
     </>

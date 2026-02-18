@@ -12,7 +12,7 @@ const JournalBanner: React.FC = () => {
           {/* Left Side */}
           <div className="flex items-center gap-6">
             <div className="bg-white p-2 hidden sm:block">
-              <img src="https://clipart-library.com/data_images/257320.gif" alt="Internet of Things Journal Cover" className="h-32 w-auto" />
+              <img src="https://i.ibb.co/zWD1dFXb/Screenshot-2026-02-17-041726.png" alt="Internet of Things Journal Cover" className="h-32 w-auto" />
             </div>
             <div>
               <h1 className="text-4xl font-bold cursor-pointer hover:underline">Internet of Journals</h1>
@@ -24,9 +24,9 @@ const JournalBanner: React.FC = () => {
           <div className="flex items-center space-x-8 mt-6 md:mt-0 text-right">
             {/* CiteScore Tooltip */}
             <div className="relative group">
-              <p className="font-bold text-2xl">12.4</p>
+              <p className="font-bold text-2xl">{}</p>
               <p className="text-sm text-gray-300 cursor-pointer group-hover:underline" tabIndex={0}>
-                CiteScore
+                {}
               </p>
               <div className="absolute right-0 mt-2 w-80 z-50 hidden group-hover:block bg-white text-gray-900 p-4 rounded shadow-lg text-xs border border-gray-200 whitespace-pre-line">
                 {citeScoreDesc}
@@ -34,9 +34,9 @@ const JournalBanner: React.FC = () => {
             </div>
             {/* Impact Factor Tooltip */}
             <div className="relative group">
-              <p className="font-bold text-2xl">7.6</p>
+              <p className="font-bold text-2xl">{}</p>
               <p className="text-sm text-gray-300 cursor-pointer group-hover:underline" tabIndex={0}>
-                Impact Factor
+                {}
               </p>
               <div className="absolute right-0 mt-2 w-80 z-50 hidden group-hover:block bg-white text-gray-900 p-4 rounded shadow-lg text-xs border border-gray-200 whitespace-pre-line">
                 {impactFactorDesc}
